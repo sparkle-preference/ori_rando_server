@@ -117,8 +117,10 @@ class SeedGenTests(unittest.TestCase):
     # verified by diffing generated seeds across the PR: same items, ~9
     # placements shuffled, exactly what a logic-path change produces.
     # 2026-10-15: the header lost "balanced"; putting it back reproduces the
-    # old hash exactly, so no placement moved.)
-    SOLO_CANARY = "8a2d108b5533e2af6937e8854136b75ed5f6bb0ba3a1aa7306dc578515d17324"
+    # old hash exactly, so no placement moved.
+    # 2026-10-18: the Forlorn escape plant joined the pool (retryable escape). Same header,
+    # same 257 lines, same non-EX items; the plant draws a pool item and the EX values re-roll.)
+    SOLO_CANARY = "979a73ca30f8b61fb3a35919b1d33ffccf0f26a42715f0ac040657d1512867ec"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -300,8 +302,8 @@ class MultiworldGenTests(unittest.TestCase):
     # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
     # split across all worlds' slots) -- EX values change, placements don't.)
     # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.
-    # 2026-10-15: header only, see SOLO_CANARY.)
-    MW_CANARY = "20b9c69c803433635ba6ef11608672f715620692c1bbd31d44303ab4612f048d"
+    # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.)
+    MW_CANARY = "a5e1456d24105434ccf61ee8a4132b62c5ee4150225988e3e8557809a10793bd"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
@@ -676,7 +678,7 @@ class PlacementRecordTests(unittest.TestCase):
     BURIED = 20000000
     EARLY = 30000000
 
-    def _gen_with_records(self, extra, seedfiles=("randomizer0.bfr",), classic=True):
+    def _gen_with_records(self, extra, seedfiles=("randomizer0.bfr",), classic=True, seed="buriedtest3"):
         """Generate and also record (tagged item, reachable-loc-count, round, the count the
         round opened at) at every assignment; the generator itself lands in self.gen.
         -> (records, {seedfile: lines})
@@ -701,7 +703,7 @@ class PlacementRecordTests(unittest.TestCase):
             return orig(sg, item, location)
         old_argv = sys.argv
         sys.argv = (["cli_gen", "--output-dir", outdir, "--preset", "standard",
-                     "--open-world", "--force-trees", "--seed", "buriedtest3"]
+                     "--open-world", "--force-trees", "--seed", seed]
                     + (["--classic-fill"] if classic else []) + extra)
         SeedGenerator.assign_to_location = spy
         SeedGenerator.get_all_accessible_locations = spy_acc
@@ -862,7 +864,8 @@ class BuriedPlacementTests(PlacementRecordTests):
         self.assertEqual(len(grenades), 1)
 
     def test_multipickup_buries_each_part(self):
-        records, _ = self._gen_with_records(["--fass", "%s:MUSK/3/SK/12" % (self.BURIED + 100)])
+        # burying both climbers this deep fails a roll now and then; this seed rolls
+        records, _ = self._gen_with_records(["--fass", "%s:MUSK/3/SK/12" % (self.BURIED + 100)], seed="buriedtest4")
         self.assertGreaterEqual(min(self._depths(records, "WallJump|1")), 100)
         self.assertGreaterEqual(min(self._depths(records, "Climb|1")), 100)
 
@@ -1764,8 +1767,9 @@ class MultiworldOptionsTests(unittest.TestCase):
             self.assertEqual(code, "MU")
             bits = id.split("/")
             parts = list(zip(bits[::2], bits[1::2]))
+            # Warmth (EV/5) is never shared, so it can ride one world's spawn alone
             spawn_shared[p] = sorted("%s/%s" % (c, i) for c, i in parts
-                                     if (c == "SK" and i != "15") or c == "EV")
+                                     if (c == "SK" and i != "15") or (c == "EV" and i != "5"))
             for c, i in parts:
                 if c == "SK" and i in skills:
                     census[i] += 1

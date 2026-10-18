@@ -3356,6 +3356,70 @@
     "type": "pickup"
    }
   },
+  "ForlornEscapeEnd": {
+   "ForlornEscapePlant": {
+    "coord": -12320248,
+    "item": "Plant",
+    "paths": [
+     {
+      "reqs": [
+       "ChargeFlame"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Dash",
+       "Ability=6"
+      ],
+      "tags": [
+       "expertChargeDash"
+      ]
+     }
+    ],
+    "type": "pickup"
+   }
+  },
+  "ForlornEscapeStart": {
+   "ForlornEscape": {
+    "coord": -7320236,
+    "item": "EVWind",
+    "paths": [
+     {
+      "reqs": [
+       "Free"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     }
+    ],
+    "type": "pickup"
+   },
+   "ForlornEscapeEnd": {
+    "paths": [
+     {
+      "reqs": [
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     }
+    ],
+    "type": "conn"
+   }
+  },
   "ForlornGravityRoom": {
    "ForlornHiddenSpiderExp": {
     "coord": -8440352,
@@ -4168,9 +4232,7 @@
    }
   },
   "ForlornLaserRoom": {
-   "ForlornEscape": {
-    "coord": -7320236,
-    "item": "EVWind",
+   "ForlornEscapeStart": {
     "paths": [
      {
       "reqs": [
@@ -4216,7 +4278,7 @@
       ]
      }
     ],
-    "type": "pickup"
+    "type": "conn"
    },
    "ForlornStompDoor": {
     "paths": [

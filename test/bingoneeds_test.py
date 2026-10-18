@@ -31,8 +31,8 @@ def reachable_locs(without=()):
 # need -> the locations a full inventory loses without it
 LOST = {need: set(LOCS) - reachable_locs(items) for need, items in NEED_ITEMS.items()}
 
-# GetItemAtLoc subgoals are named after areas.ori locations, bar one
-LOC_ALIASES = {"ForlornEscapePlant": "ForlornPlant"}
+# GetItemAtLoc subgoals are named after areas.ori locations
+LOC_ALIASES = {}
 TREE_LOCS = {"Glide": "GlideSkillFeather"}
 
 # goal -> the areas.ori item code its caps count

@@ -19,7 +19,7 @@ from seedbuilder.oriparse import get_path_tags_from_pathsets
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oride_apworld", "oride", "data")
 
 # contract version checked by the apworld; bump with oride/version.py (its docstring has the rule)
-DATA_VERSION = 7
+DATA_VERSION = 8
 
 EXPORT_CODES = {"SK", "TP", "EV"}
 LOCAL_CODES = {"KS", "MS", "HC", "EC", "AC"}
@@ -33,11 +33,6 @@ GOAL_REGION = "HoruEscapeInnerDoor"
 EXTRA_LOCATIONS = {
     # the escape itself is free once the door region is reached
     "FinalEscape": {"region": "HoruEscapeInnerDoor", "paths": []},
-    # in-escape plant: wind starts the escape, fire opens the plant
-    "ForlornEscapePlant": {"region": "ForlornLaserRoom", "paths": [
-        {"tags": [], "reqs": ["Wind", "ChargeFlame"]},
-        {"tags": [], "reqs": ["Wind", "Grenade"]},
-    ]},
 }
 
 

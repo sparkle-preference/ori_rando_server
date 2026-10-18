@@ -461,8 +461,8 @@ class SeedGenerator:
         return self.seed_count == 1
 
     def total_locs(self):
-        """252 locations per world."""
-        return 252 * self.seed_count
+        """areas.ori's pickup count, per world; set by form_areas."""
+        return self.world_locs * self.seed_count
 
     MAX_SLOTS = 256  # 8x32-bit slot bitfields on the Player entity: wire format
 
@@ -1692,6 +1692,7 @@ class SeedGenerator:
 
         # sorry for this - only intended to last as long as 3.0 beta lasts
         meta = get_areas(self.params.areas_ori_path)     # one parse shared by every world; never mutated
+        self.world_locs = len(meta["locs"])
         for p in self.multi_ps():
             logic_paths = [lp.value for lp in self.params_for(p).logic_paths]
             logic_path_tags = get_path_tags_from_pathsets(logic_paths)
@@ -2130,16 +2131,6 @@ class SeedGenerator:
             self.relicSpoiler = [(item, instance) for item in self.spoilerGroup.keys() if item[:2] == "WT" for instance in self.spoilerGroup[item]]
 
         self.place_repeatables()
-        # the Forlorn escape plant: fixed pickup, outside the pool and the location count
-        for p in self.multi_ps():
-            loc, item, owner, zone = -12320248, "EX100", p, "Forlorn"
-            if (p, loc) in self.forcedAssignments:
-                item, _, owner_v = self.forcedAssignments.pop((p, loc)).partition("|")
-                owner = int(owner_v) if owner_v else p
-            if item != "EX100" and tag(item, owner) not in self.itemPool:
-                log.warning("Preplaced item %s was not in pool. Translation may be necessary." % item)
-            ass, _ = self.get_assignment(loc, p, self.adjust_item(tag(item, owner), zone), zone)
-            self.seeds_text[p] += ass
 
         for p in self.multi_ps():
             if (p, 2) not in self.forcedAssignments:

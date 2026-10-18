@@ -7,8 +7,8 @@ only when older yamls become unreadable. No imports: the server suite loads this
 """
 
 # 4: "stones" export + keystone tiers; 5: Mini Health/Energy; 6: tiers on every non-keysanity seed;
-# 7: enemy rando's arena_killers and lure-free pathsets
-DATA_VERSION = 7
+# 7: enemy rando's arena_killers and lure-free pathsets; 8: the Forlorn escape plant is a graph location
+DATA_VERSION = 8
 COMPATIBLE_DATA_VERSION = 1
 
 # yamls emitted before data_version existed came from the only table

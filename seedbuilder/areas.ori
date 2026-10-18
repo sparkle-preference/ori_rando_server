@@ -270,6 +270,7 @@ loc: ForlornMap -843 -308 MapStone 5 Forlorn
 loc: ForlornPlant -815 -266 Plant 5 Forlorn
 loc: RightForlornHealthCell -625 -315 HC 5 Forlorn
 loc: ForlornEscape -732 -236 EVWind 6 Forlorn
+loc: ForlornEscapePlant -1232 -248 Plant 6 Forlorn
 loc: RightForlornPlant -607 -314 Plant 6 Forlorn
 loc: SorrowEntranceAbilityCell -510 204 AC 1 Sorrow
 loc: SorrowMainShaftKeystone -485 323 KS 1 Sorrow
@@ -4363,7 +4364,7 @@ home: ForlornKeyDoorOpened -805 -309
 home: ForlornLaserRoom -793 -309
 	-- anchored past the Forlorn key door
 	-- this path assumes the bridge exists
-	pickup: ForlornEscape
+	conn: ForlornEscapeStart
 		casual WallJump
 		casual Climb ChargeJump
 		casual Climb DoubleJump
@@ -4385,6 +4386,19 @@ home: ForlornLaserRoom -793 -309
 		master Stomp Glide TripleJump
 		master Lure Stomp Bash
 		master Stomp GrenadeJump
+home: ForlornEscapeStart -732 -236
+	-- anchored at the wind restored pickup, where the escape starts
+	pickup: ForlornEscape
+		casual Free
+	-- the escape can be restarted from here
+	conn: ForlornEscapeEnd
+		casual Glide
+home: ForlornEscapeEnd -1232 -248
+	-- anchored at the plant inside the escape
+	pickup: ForlornEscapePlant
+		casual ChargeFlame
+		casual Grenade
+		expert ChargeDash
 home: ForlornStompDoor -673 -289
 -- anchored just past the (opened) stomp door in Forlorn
 	conn: RightForlorn

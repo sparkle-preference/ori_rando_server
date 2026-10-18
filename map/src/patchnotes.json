@@ -11,6 +11,47 @@
   ],
   "pending": [
     {
+      "text": "The Forlorn and Ginso escapes can be restarted after you leave them with a warp, a teleport or Alt+R (thanks to d265f27).",
+      "category": "Game",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "Forlorn: talk to Sein where the wind was restored.",
+        "Ginso: talk to Sein beneath the heart, like the first time.",
+        "Pickups you already took in an escape stay taken."
+      ]
+    },
+    {
+      "text": "The Kuro hide-and-seek after the Forlorn escape is gone.",
+      "category": "Game",
+      "importance": "minor"
+    },
+    {
+      "text": "The Forlorn escape plant is a regular pickup, in logic with Glide.",
+      "category": "Logic",
+      "importance": "minor"
+    },
+    {
+      "text": "Enemy Rando no longer replaces the mortar worm the Forlorn escape needs.",
+      "category": "Seed Generator",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Archipelago: the Forlorn escape plant is a regular location. Needs the current apworld (0.3.2, data version 8).",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "minor",
+      "tags": [
+        "Archipelago"
+      ]
+    },
+    {
+      "text": "Plando editor: the Forlorn escape plant starts empty like every other location.",
+      "category": "Plando",
+      "importance": "minor"
+    },
+    {
       "text": "Enemy Rando: swarms, fronkeys and frogs no longer take spots with nothing below them.",
       "category": "Seed Generator",
       "type": "fix",
@@ -27,7 +68,7 @@
       ]
     },
     {
-      "text": "Archipelago seeds can use Enemy Rando: the yaml leaves out lure paths and carries the skills a miniboss room's new tenant needs. Needs the current apworld (data version 7).",
+      "text": "Archipelago seeds can use Enemy Rando: the yaml leaves out lure paths and carries the skills a miniboss room's new tenant needs. Needs the current apworld (data version 8).",
       "category": "Multiplayer",
       "type": "feature",
       "importance": "minor"

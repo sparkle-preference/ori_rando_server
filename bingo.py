@@ -46,7 +46,7 @@ ZONE_NEEDS = {"Ginso": "Ginso", "Forlorn": "Forlorn", "Horu": "Horu"}
 # Standard logic, pinned by test/bingoneeds_test.py.
 ZONE_CAPS = {
     "Blackroot": {"Grenade": 15, "Blue": 14},
-    "Forlorn":   {"Stomp": 8, "Blue": 8},
+    "Forlorn":   {"Stomp": 9, "Blue": 8},
     "Ginso":     {"Blue": 21},
     "Glades":    {"Grenade": 25, "Blue": 25},
     "Grotto":    {"Blue": 28},
@@ -624,7 +624,7 @@ class BingoGenerator(object):
                     BoolGoal(name = "DoorWarpExp", disp_name = "Door Warp EX", help_lines = ["The hidden Exp orb in the bottom of Horu, across from the Final Escape access door"], needs = ["Horu"]),
                     BoolGoal(name = "HoruR3Plant", disp_name = "R3 Plant", help_lines = ["The plant behind the lava column in R3"], needs = ["Horu", "Blue"]),
                     BoolGoal(name = "RightForlornHealthCell", disp_name = "Right Forlorn HC", help_lines = ["The health cell in the stomp-locked area at the far right of Forlorn"], needs = ["Forlorn", "Stomp"]),
-                    BoolGoal(name = "ForlornEscapePlant", disp_name = "Forlorn Escape Plant", help_lines = ["The plant in Forlorn Escape (Missable if you start the escape but don't complete it!)"], needs = ["Forlorn", "Blue"])
+                    BoolGoal(name = "ForlornEscapePlant", disp_name = "Forlorn Escape Plant", help_lines = ["The plant in the Forlorn escape"], needs = ["Forlorn", "Blue"])
                 ],
                 methods = [
                     ("or", r((2, 3), (1, 2), (1, 1), flat=True)), 

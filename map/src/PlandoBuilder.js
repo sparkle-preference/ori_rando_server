@@ -61,9 +61,7 @@ const optSwitch = (id, text, checked, onChange) => (
     </div>
 )
 
-const DEFAULT_DATA = {
-    '-12320248': {label: "100 Experience", value: "EX|100"}
-}
+const DEFAULT_DATA = {}
 
 // the corner of a box, while boxes are being edited on the map
 const HANDLE_ICON = Leaflet.divIcon({className: "box-handle", iconSize: [10, 10]})

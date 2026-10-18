@@ -49,12 +49,10 @@ def cli_params(extra, seed="test"):
 
 
 class ForlornPlantFassTests(unittest.TestCase):
-    def test_plain_plant_holds_its_default(self):
+    def test_plain_plant_is_filled_once(self):
         lines = body(cli_seed([])["randomizer0.bfr"])
-        self.assertIn("%s|EX|100|Forlorn" % FORLORN_PLANT, lines)
+        self.assertEqual(len([l for l in lines if l.startswith("%s|" % FORLORN_PLANT)]), 1)
 
-    # defect: a plant fass is never taken out of the pool, so the item is placed twice
-    @unittest.expectedFailure
     def test_plant_fass_places_the_item_once(self):
         lines = body(cli_seed(["--fass=%s:SK0" % FORLORN_PLANT])["randomizer0.bfr"])
         self.assertEqual(len([l for l in lines if l.split("|")[1:3] == ["SK", "0"]]), 1)

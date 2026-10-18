@@ -190,6 +190,9 @@ class OriDEWorld(World):
         # locations orirando fills but areas.ori doesn't model (escapes,
         # first EC): the yaml supplies their region + requirements
         for name, extra in self.cfg.get("extra_locations", {}).items():
+            # an older yaml can still list a location the graph now models
+            if name in placed:
+                continue
             needs = self.compiler.compile_paths(extra.get("paths", [{"tags": [], "reqs": []}]))
             self._attach_location(regions[extra["region"]], name, needs, placed)
 
