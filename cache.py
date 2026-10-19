@@ -11,6 +11,17 @@ from pymemcache import serde
 
 # a saturated pool raises on writes, so it must cover gunicorn's --threads plus background threads
 POOL_SIZE = 128
+# bingo square marks are viewer hints, never persisted: a lapsed key just clears them
+MARKS_TTL = 43200
+
+
+def _with_marks(marks, pid, bits):
+    marks = dict(marks or {})
+    if bits:
+        marks[int(pid)] = int(bits)
+    else:
+        marks.pop(int(pid), None)
+    return marks
 
 
 class MemcachedCache(object):
@@ -167,6 +178,37 @@ class MemcachedCache(object):
         board.pop("is_owner", None)
         return self.memcache.set(key="%s.board" % gid, value=board, expire=60)
 
+    # {pid: 25-bit mask} of squares each player marked; the board poll reads both in one trip
+    def get_board_and_marks(self, gid):
+        keys = ["%s.board" % gid, "%s.marks" % gid]
+        try:
+            got = self.memcache.get_many(keys)
+        except Exception:
+            return None, {}
+        return got.get(keys[0]), got.get(keys[1]) or {}
+
+    def get_marks(self, gid):
+        return self.memcache_get(key="%s.marks" % gid) or {}
+
+    def set_marks(self, gid, pid, bits):
+        """CAS, since every player of the game writes the one key; False if it kept losing."""
+        key = "%s.marks" % gid
+        try:
+            for _ in range(5):
+                marks, token = self.memcache.gets(key)
+                marks = _with_marks(marks, pid, bits)
+                if token is None:
+                    if self.memcache.add(key=key, value=marks, expire=MARKS_TTL, noreply=False):
+                        return True
+                elif self.memcache.cas(key, marks, token, expire=MARKS_TTL, noreply=False):
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def clear_marks(self, gid):
+        self.memcache.delete(key="%s.marks" % gid)
+
     def get_areas(self):
         areas = self.memcache_get(key="CURRENT_LOGIC")
         if not areas:
@@ -238,7 +280,7 @@ class MemcachedCache(object):
         per_player = ["%s.%s.%s" % (gid, p, suffix) for p in self._pids(gid)
                       for suffix in ("have", "hist", "pos", "reach", "items", "output", "seenhash")]
         game_wide = ["%s.%s" % (gid, k) for k in
-                     ("san", "relics", "board", "names", "pids", "strike")]
+                     ("san", "relics", "board", "marks", "names", "pids", "strike")]
         self.memcache.delete_multi(per_player + game_wide)
 
     def clear(self):
@@ -399,6 +441,19 @@ class PythonCache(object):
     def set_board(self, gid, board):
         board.pop("is_owner", None)  # viewer-specific, never cache (see MemcachedCache)
         return self.cache.set(key="%s.board" % gid, value=board, time=60)
+
+    def get_board_and_marks(self, gid):
+        return self.get_board(gid), self.get_marks(gid)
+
+    def get_marks(self, gid):
+        return self.cache.get(key="%s.marks" % gid) or {}
+
+    def set_marks(self, gid, pid, bits):
+        self.cache.set(key="%s.marks" % gid, value=_with_marks(self.get_marks(gid), pid, bits), time=MARKS_TTL)
+        return True
+
+    def clear_marks(self, gid):
+        self.cache.pop("%s.marks" % gid, None)
 
     def get_areas(self):
         areas = self.cache.get(key="CURRENT_LOGIC")

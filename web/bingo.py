@@ -42,7 +42,7 @@ def bingo_board():
 def bingo_get_game(game_id):
     now = utcnow()
     first = param_flag("first")
-    res = Cache.get_board(game_id)
+    res, marks = Cache.get_board_and_marks(game_id)
     if first or not res:
         t0 = monotonic()
         bingo = BingoGameData.with_id(game_id)
@@ -55,7 +55,33 @@ def bingo_get_game(game_id):
             # a copy, since set_board strips is_owner and the offset lands on res
             Cache.set_board(game_id, dict(res))
         add_client_offset(res, now)
+    res["marks"] = marks
     return json_resp(res)
+
+
+# a mark is the player's "going for this one", shown wherever their board is
+MARKS_ALL = (1 << 25) - 1
+
+
+@bp.route('/bingo/game/<int:game_id>/marks/<int:player_id>') #BingoSetMarks =
+def bingo_set_marks(game_id, player_id):
+    bits = param_int("squares")
+    if bits is None or not 0 <= bits <= MARKS_ALL:
+        return text_resp("?squares= wants a 25-bit mask", 400)
+    bingo = BingoGameData.with_id(game_id)
+    if not bingo:
+        return text_resp("Bingo game %s not found" % game_id, 404)
+    if player_id not in bingo.player_nums():
+        return text_resp("Player %s is not in bingo game %s" % (player_id, game_id), 404)
+    # a claimed seat takes marks from its account alone; an unclaimed one from its board page
+    player = bingo.player(player_id)
+    user = User.get()
+    if player and player.user and not (user and player.user == user.key):
+        return text_resp("Only this player's account can mark their board", 403)
+    if not Cache.set_marks(game_id, player_id, bits):
+        return text_resp("Couldn't save the marks, try again", 503)
+    return text_resp("ok")
+
 
 @bp.route('/bingo/game/<int:game_id>/start') #BingoStartCountdown =
 def bingo_start_game(game_id):
@@ -169,6 +195,7 @@ def _bingo_reroll_board_inner(game_id):
         if Player.signal_send_txn(p.key, "msg:@Board rerolled! Press alt+L to pick up the new goals@"):
             Cache.clear_seen_checksum(p.idpts())
     bingo.put()
+    Cache.clear_marks(game_id)
     # in the shape a poll expects, or every viewer sits on the old board for a TTL
     Cache.set_board(game_id, bingo.get_json())
     res = bingo.get_json(True)
@@ -267,7 +294,11 @@ def _bingo_remove_player_inner(game_id, player_id):
     user = User.get()
     if not user or bingo.creator != user.key:
         return text_resp("Only the creator can remove players", 401)
+    seated = set(bingo.player_nums())
     bingo = bingo.remove_player(player_id).get()
+    # a later joiner can land on a freed pid
+    for pid in seated - set(bingo.player_nums()):
+        Cache.set_marks(game_id, pid, 0)
     res = bingo.get_json()
     Cache.set_board(game_id, dict(res))
     return json_resp(res)
@@ -594,6 +625,7 @@ def bingo_userboard_tick(name, game_id):
         return text_resp("Bingo game %s not found" % game_id, 404)
     res = bingo.get_json(first)
     add_client_offset(res, now)
+    res["marks"] = Cache.get_marks(game_id)
     return json_resp(res)
 
 
@@ -739,6 +771,7 @@ def add_bingo_to_game(game_id):
         bkey = bingo.put()
         game.bingo_data = bkey
         game.put()
+        Cache.clear_marks(game_id)  # a recreate replaces a live board
         return json_resp(json.dumps(res))
 
 

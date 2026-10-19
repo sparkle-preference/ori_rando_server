@@ -15,6 +15,18 @@
       "category": "Bingo",
       "type": "feature",
       "importance": "minor"
+    },
+    {
+      "text": "Bingo: squares you click on your board now show up on your userboard, the spectator page, and your other devices.",
+      "category": "Bingo",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Bingo squares can be restyled with custom CSS, e.g. in an OBS browser source. The [userboard FAQ](/faq?g=bingo_userboard) lists the colors and classes.",
+      "category": "Bingo",
+      "type": "feature",
+      "importance": "minor"
     }
   ],
   "releases": [

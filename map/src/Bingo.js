@@ -7,6 +7,7 @@ import {FaSave} from 'react-icons/fa';
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css'
 import 'react-notifications/lib/notifications.css';
+import './bingo.css';
 
 import {download} from './shared_map.js'
 import {Cent, ordinal_suffix, doNetRequest, player_icons, get_random_loader, PickupSelect, resolve_dark, get_param, dev,
@@ -28,6 +29,10 @@ const altComplete = iniUrl.searchParams.has("altCmplt")
 const NET_FAIL_BANNER = 3;
 const NET_FAIL_TOAST = 8;
 const NET_BACKOFF_MAX = 30000;
+// clicks settle this long before a player's marks go out; each write carries the whole set
+const MARK_DEBOUNCE = 400;
+const MARK_RETRY = 2000;
+const MARK_RETRIES = 5;
 
 // display only: bingo.py's bump_board_seed decides the seed a reroll really uses
 const bumpBoardSeed = (seed) => {
@@ -45,21 +50,18 @@ const spectateLink = (gameId) => {
 }
 
 const make_icons = players => players.map(p => (<Media key={`playerIcon${p}`} object style={{width: "25px", height: "25px"}} src={player_icons(p, false)} alt={"Icon for player "+p} />))
-const BingoCard = ({card, progress, players, locked, help, dark, selected, onSelect, colors, hide}) => {
+// colors live in bingo.css as classes, so a browser source's custom CSS can restyle them
+const BingoCard = ({card, progress, players, locked, help, marked, onMark, hide}) => {
     let cardStyles = {width: '18vh', height: '18vh', minWidth: '120px', maxWidth: '200px', minHeight: '120px', maxHeight: '200px', flexGrow: 1}
     let footerStyles = {}
     let bodyStyles = {fontSize: cardTextSize, fontWeight: "bold"}
-    cardStyles.border = '1px solid'
-    cardStyles.borderColor = colors.border
     if(hide)
         return (
-            <Card inverse={dark} style={cardStyles}>
+            <Card className="bingo-square is-hidden" style={cardStyles}>
                 <CardBody className="px-0 pb-0 justify-content-center text-center align-items-center d-flex pt1"/>
             </Card>
         )
 
-    if(selected)
-        cardStyles.background = colors.selected
     let {open, toggle, i} = help
     let {disp_name, help_lines, subgoals, target} = card
     subgoals = subgoals || {}
@@ -70,18 +72,13 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
     let j = 1;
 
     Object.keys(subgoals).forEach(subgoal => {
-        let styles = {};
         let line = subgoals[subgoal].disp_name
-        if(progress.subgoals && progress.subgoals.includes(subgoal))
-        {
-            if(progress.completed)
-                line = (<u>{line}</u>)
-            else
-                styles.background = colors.complete
-        }
-        else if(progress.in_progress)
+        let done = progress.subgoals && progress.subgoals.includes(subgoal)
+        if(done && progress.completed)
+            line = (<u>{line}</u>)
+        else if(!done && progress.in_progress)
             line = (<i>{line}</i>)
-        text.push((<div className="w-100" key={`card-line-${j++}`} style={styles}>{line}</div>))
+        text.push((<div className={"w-100 bingo-subgoal" + (done ? " is-done" : "")} key={`card-line-${j++}`}>{line}</div>))
     })
     if(target) {
         text.push((<div className="w-100" key={`card-line-${j++}`}>({progress.count ? `${progress.count}/` : ""}{target})</div>))
@@ -100,14 +97,15 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
         )
     }
 
-    if(progress.completed) {
-        if(altComplete)
-            bodyStyles.color = colors.complete
-        else
-            cardStyles.background = colors.complete
-    }
+    let classes = ["bingo-square"]
+    if(progress.completed)
+        classes.push(altComplete ? "is-complete-alt" : "is-complete")
+    else if(progress.count > 0 || (progress.subgoals || []).length > 0)
+        classes.push("is-partial")
+    if(marked)
+        classes.push("is-marked")
     if(locked)
-        cardStyles.background = colors.taken
+        classes.push("is-taken")
     let footer = (hideFooter || blindRace) ? null : (
         <CardFooter style={footerStyles} className="p-0 text-center">
             {helpLink}
@@ -116,8 +114,8 @@ const BingoCard = ({card, progress, players, locked, help, dark, selected, onSel
         </CardFooter>
     ) 
     return (
-        <Card inverse={dark} style={cardStyles}>
-            <CardBody onClick={onSelect} style={bodyStyles} className={className}>
+        <Card className={classes.join(" ")} style={cardStyles}>
+            <CardBody onClick={onMark || undefined} style={bodyStyles} className={className}>
                 {text}
             </CardBody>
             {footer}
@@ -129,18 +127,14 @@ class BingoBoard extends Component {
     constructor(props) {
         super(props);
         let {cards} = props
-        this.state = {helpOpen: cards.map(_ => false), selected: cards.map(_ => false)}
+        this.state = {helpOpen: cards.map(_ => false)}
     }
     helpToggle = (cardNum) => () => this.setState(prev => {
         prev.helpOpen[cardNum]  = !prev.helpOpen[cardNum]
         return {helpOpen: prev.helpOpen}
     })
-    selectToggle = (cardNum) => () => this.setState(prev => {
-        prev.selected[cardNum]  = !prev.selected[cardNum]
-        return {selected: prev.selected}
-    })
     render() {
-        let {cards, bingos, colors, hiddenPlayers, activePlayer, activeTeam, dark, discovery} = this.props
+        let {cards, bingos, hiddenPlayers, activePlayer, activeTeam, dark, discovery, marks, onMark} = this.props
         if(!cards || cards.length < 25) {
             return null
         }
@@ -170,8 +164,9 @@ class BingoBoard extends Component {
             }
         }
         let rows = [], i = 0;
-        let colStyle = (b) => ({height: "22px", textAlign: 'center', background: bingos.includes(b) ? colors.complete : 'inherit'})
-        let rowStyle = (b) => ({textAlign: 'center', visibility: hideLabels ? 'hidden' : 'inherit', width: "22px", background: bingos.includes(b) ? colors.complete : 'inherit'})
+        let label = (b) => "rounded bingo-label" + (bingos.includes(b) ? " is-bingo" : "")
+        let colStyle = {height: "22px", textAlign: 'center'}
+        let rowStyle = {textAlign: 'center', visibility: hideLabels ? 'hidden' : 'inherit', width: "22px"}
         while(rows.length < 5) {
             let row = []
             while(row.length < 5) {
@@ -181,34 +176,35 @@ class BingoBoard extends Component {
                 let progress = card.progress.hasOwnProperty(activePlayer) ? card.progress[activePlayer] : {'completed': false, 'count': 0, 'subgoals': []}
                 // temp bullshit
                 progress.completed = card.completed_by.includes(activePlayer) || card.completed_by.includes(activeTeam)
-                row.push((<td key={i}><BingoCard hide={hide && !showSquares.includes(i)} colors={colors} selected={this.state.selected[i]} onSelect={this.selectToggle(i)} dark={dark} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} locked={locked} /></td>))
+                let sq = i
+                row.push((<td key={i} className="bingo-cell"><BingoCard hide={hide && !showSquares.includes(i)} marked={(marks & (1 << i)) !== 0} onMark={onMark ? () => onMark(sq) : null} card={card} progress={progress} help={{i: i, open: this.state.helpOpen[i], toggle: this.helpToggle(i)}} players={players} locked={locked} /></td>))
                 i++
             }
             let rowNum = rows.length + 1
-            let rowLabel = (<td className={"rounded"} style={rowStyle(`Row ${rowNum}`)}><div>{rowNum}</div></td>)
+            let rowLabel = (<td className={label(`Row ${rowNum}`)} style={rowStyle}><div>{rowNum}</div></td>)
             rows.push((<tr key={`row-${rowNum}`}>{rowLabel}{row}{rowLabel}</tr>))
         }
 
-        return (<table>
+        return (<table className={"bingo-board" + (dark ? " bingo-dark" : "")}>
                     <tbody>
                         <tr style={{visibility: hideLabels ? 'hidden' : 'inherit'}}>
-                            <td><div className="rounded" style={colStyle("A1-E5")}>X</div></td>
-                            <td><div className="rounded" style={colStyle("Col A")}>A</div></td>
-                            <td><div className="rounded" style={colStyle("Col B")}>B</div></td>
-                            <td><div className="rounded" style={colStyle("Col C")}>C</div></td>
-                            <td><div className="rounded" style={colStyle("Col D")}>D</div></td>
-                            <td><div className="rounded" style={colStyle("Col E")}>E</div></td>
-                            <td><div className="rounded" style={colStyle("E1-A5")}>Y</div></td>
+                            <td><div className={label("A1-E5")} style={colStyle}>X</div></td>
+                            <td><div className={label("Col A")} style={colStyle}>A</div></td>
+                            <td><div className={label("Col B")} style={colStyle}>B</div></td>
+                            <td><div className={label("Col C")} style={colStyle}>C</div></td>
+                            <td><div className={label("Col D")} style={colStyle}>D</div></td>
+                            <td><div className={label("Col E")} style={colStyle}>E</div></td>
+                            <td><div className={label("E1-A5")} style={colStyle}>Y</div></td>
                         </tr>
                         {rows}
                         <tr style={{visibility: hideLabels ? 'hidden' : 'inherit', textAlign: 'center'}}>
-                            <td><div className="rounded" style={colStyle("E1-A5")}>Y</div></td>
-                            <td><div className="rounded" style={colStyle("Col A")}>A</div></td>
-                            <td><div className="rounded" style={colStyle("Col B")}>B</div></td>
-                            <td><div className="rounded" style={colStyle("Col C")}>C</div></td>
-                            <td><div className="rounded" style={colStyle("Col D")}>D</div></td>
-                            <td><div className="rounded" style={colStyle("Col E")}>E</div></td>
-                            <td><div className="rounded" style={colStyle("A1-E5")}>X</div></td>
+                            <td><div className={label("E1-A5")} style={colStyle}>Y</div></td>
+                            <td><div className={label("Col A")} style={colStyle}>A</div></td>
+                            <td><div className={label("Col B")} style={colStyle}>B</div></td>
+                            <td><div className={label("Col C")} style={colStyle}>C</div></td>
+                            <td><div className={label("Col D")} style={colStyle}>D</div></td>
+                            <td><div className={label("Col E")} style={colStyle}>E</div></td>
+                            <td><div className={label("A1-E5")} style={colStyle}>X</div></td>
                         </tr>
                     </tbody>
                 </table>);
@@ -420,7 +416,8 @@ export default class Bingo extends React.Component {
                       difficulty: difficulty, isRandoBingo: false, randoGameId: -1, viewOnly: viewOnly, buildingPlayer: false, meta: iniUrl.searchParams.has("bingoMeta"),
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: perWorldSeed || (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
-                      ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false, seedsTaken: []
+                      ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false, seedsTaken: [],
+                      marks: {}, pendingMarks: {}
                     };
         if(gameId > 0) {
             if(fromGen) {
@@ -562,10 +559,71 @@ export default class Bingo extends React.Component {
     pollCallback = (res) => {
         if(res.status === 0)
             return this.netFailed()
+        let started = this.state.ticking
         this.tickCallback(res)
         if(res.status !== 200)
             this.setState(prev => ({netRetryAt: Date.now() + Math.min(NET_BACKOFF_MAX, 1000 * Math.pow(2, prev.fails - 1))}))
+        else if(started)
+            this.settleMarks(started)
     }
+
+    // our unconfirmed clicks, else what the server last said
+    markBits = (pid) => {
+        let pending = this.state.pendingMarks[pid]
+        return pending ? pending.bits : (this.state.marks[pid] || 0)
+    }
+
+    toggleMark = (square) => {
+        let pid = this.state.activePlayer
+        if(!(pid > 0))
+            return
+        let bits = this.markBits(pid) ^ (1 << square)
+        this.setState(prev => ({pendingMarks: {...prev.pendingMarks, [pid]: {...prev.pendingMarks[pid], bits: bits}}}))
+        clearTimeout(this.markTimer)
+        this.markTimer = setTimeout(this.sendMarks, MARK_DEBOUNCE)
+    }
+
+    // one write in flight; whatever changed meanwhile goes out when it lands
+    sendMarks = () => {
+        let {pendingMarks, gameId} = this.state
+        let pid = Object.keys(pendingMarks).find(p => pendingMarks[p].sent !== pendingMarks[p].bits)
+        if(this.markInFlight || pid === undefined)
+            return
+        let bits = pendingMarks[pid].bits
+        this.markInFlight = true
+        doNetRequest(`/bingo/game/${gameId}/marks/${pid}?squares=${bits}&time=${Date.now()}`, ({status, responseText}) => {
+            this.markInFlight = false
+            if(status === 0 || status >= 500) {
+                this.markFails = (this.markFails || 0) + 1
+                if(this.markFails < MARK_RETRIES)
+                    return setTimeout(this.sendMarks, MARK_RETRY)
+                NotificationManager.warning("Couldn't save your marks.", "Marks", 5000)
+            } else if(status !== 200)
+                NotificationManager.info(responseText, "Marks", 5000)
+            this.markFails = 0
+            this.setState(prev => {
+                let pending = {...prev.pendingMarks}
+                if(status !== 200)
+                    delete pending[pid]
+                else if(pending[pid])
+                    pending[pid] = {...pending[pid], sent: bits, ackedAt: Date.now()}
+                return {pendingMarks: pending}
+            }, this.sendMarks)
+        })
+    }
+
+    // the server's word wins again once a poll that began after our write comes back
+    settleMarks = (started) => this.setState(prev => {
+        let settled = Object.keys(prev.pendingMarks).filter(p => {
+            let m = prev.pendingMarks[p]
+            return m.sent === m.bits && m.ackedAt < started
+        })
+        if(!settled.length)
+            return null
+        let pending = {...prev.pendingMarks}
+        settled.forEach(p => delete pending[p])
+        return {pendingMarks: pending}
+    })
 
     tickCallback = ({status, responseText}) => {
         if(status !== 200)
@@ -582,6 +640,8 @@ export default class Bingo extends React.Component {
             let res = JSON.parse(responseText)
             // cached boards strip the viewer-specific is_owner, so keep the first fetch's
             let newState = {events: res.events, startTime: res.start_time_posix, countdownActive: res.countdown, isOwner: res.hasOwnProperty('is_owner') ? res.is_owner : this.state.isOwner, ticking: false, netFails: 0, netRetryAt: 0}
+            if(res.marks)
+                newState.marks = res.marks
             if(res.gameId !== this.state.gameId)
             {
                 if(this.state.userBoard && this.state.user)
@@ -765,7 +825,7 @@ export default class Bingo extends React.Component {
                               targetCount: (mine && mine.bingo_count) || res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                               discSquares: (mine && mine.discovery) || res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
-                              apWorlds: res.ap_worlds || 0, rerollingBoard: false,
+                              apWorlds: res.ap_worlds || 0, rerollingBoard: false, marks: res.marks || {}, pendingMarks: {},
                               // the settings the modal reopens on, so a reroll only changes what was asked for
                               difficulty: res.difficulty || this.state.difficulty, seed: res.board_seed || this.state.seed,
                               meta: (mine ? mine.meta : res.meta) || false,
@@ -862,13 +922,8 @@ export default class Bingo extends React.Component {
             subtitle, cards, haveGame, gameId, user, dispDiff, teams, loadingText, userBoard, discSquares, lockout, apWorlds} = this.state
         let s = getComputedStyle(document.body);
         let inputStyle = {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}
-
-        let colors = {
-            complete: s.getPropertyValue("--teal"),
-            taken: s.getPropertyValue("--red"),
-            selected: s.getPropertyValue("--cyan"),
-            border: s.getPropertyValue("--dark")
-        }
+        // a player marks from their own board page; spectators and userboards just show them
+        let markProps = {marks: this.markBits(activePlayer), onMark: (haveGame && !viewOnly && !userBoard) ? this.toggleMark : null}
 
         // no clock on a per-world game, so nothing to start
         let startButton = isOwner && !startTime && !Object.keys(this.state.boardsByWorld || {}).length ? (
@@ -947,7 +1002,7 @@ export default class Bingo extends React.Component {
         let bingoContent = haveGame ? (
             <Row className="justify-content-center align-items-center">
                 <Col xs="auto">
-                    <BingoBoard colors={colors} discovery={discSquares} lockout={lockout} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                    <BingoBoard {...markProps} discovery={discSquares} lockout={lockout} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                 </Col>
                     <PlayerList {...this.state} onPlayerListAction={this.onPlayerListAction} onSeedTaken={this.onSeedTaken}/>
             </Row>
@@ -982,7 +1037,7 @@ export default class Bingo extends React.Component {
 
                     <Row className="flex-nowrap p-0 m-0">
                         <Col className="p-0 m-0">
-                            <BingoBoard colors={colors} discovery={discSquares} lockout={lockout} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
+                            <BingoBoard {...markProps} discovery={discSquares} lockout={lockout} dark={dark} cards={cards} activePlayer={activePlayer} activeTeam={this.getCap(activePlayer)} bingos={bingos} hiddenPlayers={hiddenPlayers}/>
                         </Col>
                         <Col>
                             {rows}

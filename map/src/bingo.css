@@ -1,0 +1,11 @@
+/* Custom CSS loads after this (an OBS browser source's does), so a rule as specific as these wins. */
+.bingo-dark .bingo-cell { color: #fff; }
+.card.bingo-square { border: 1px solid var(--bingo-border, var(--dark)); }
+.bingo-square.is-marked { background-color: var(--bingo-marked, var(--cyan)); }
+.bingo-square.is-complete { background-color: var(--bingo-complete, var(--teal)); }
+.bingo-square.is-complete-alt .card-body { color: var(--bingo-complete, var(--teal)); }
+.bingo-square.is-taken { background-color: var(--bingo-taken, var(--red)); }
+.bingo-subgoal.is-done { background-color: var(--bingo-complete, var(--teal)); }
+.bingo-square.is-complete .bingo-subgoal.is-done,
+.bingo-square.is-complete-alt .bingo-subgoal.is-done { background-color: transparent; }
+.bingo-label.is-bingo { background-color: var(--bingo-complete, var(--teal)); }

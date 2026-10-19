@@ -21,6 +21,22 @@ const USERBOARD_PARAMS = [
   ["hideFooter*", "off", "Hide the square footers that show which players have completed that square."],
   ["hideLabels*", "off", "hide the row, column, and diagonal labels that normally surround the board."]
 ];
+// the variables and classes bingo.css styles the board with
+const BINGO_CSS_VARS = `:root {
+  --bingo-complete: #8e44ad; /* finished squares, subgoals, and lines */
+  --bingo-marked: #34495e;   /* squares you clicked */
+  --bingo-taken: #c0392b;    /* lockout squares someone else holds */
+  --bingo-border: #000;
+}`;
+const BINGO_CLASSES = [
+  [".bingo-square", "Every square."],
+  [".bingo-square.is-complete", "A finished square."],
+  [".bingo-square.is-partial", "A square with some progress."],
+  [".bingo-square.is-marked", "A square you clicked."],
+  [".bingo-square.is-taken", "A lockout square someone else holds."],
+  [".bingo-subgoal.is-done", "A finished line inside a square."],
+  [".bingo-label.is-bingo", "The label of a finished row, column, or diagonal."]
+];
 const counts = {
   "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
   "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
@@ -517,6 +533,12 @@ export default class HelpAndGuides extends React.Component {
                 <Col className="text-center align-self-center" xs="3"><small>{def}</small></Col>
             </Row>
         ))
+        let classRows = BINGO_CLASSES.map(([name, desc]) => (
+            <Row className="border" key={name}>
+                <Col className="align-self-center" xs="6"><code>{name}</code></Col>
+                <Col className="border-left" xs="6"><small>{desc}</small></Col>
+            </Row>
+        ))
         return (
             <Card className="w-100 mt-2" id="bingo_userboard">
             <CardBody>
@@ -532,6 +554,9 @@ export default class HelpAndGuides extends React.Component {
                 </CardText>
                 <CardText>
                     Userboards automatically show the last bingo game you most recently joined and update live when you join new games.
+                </CardText>
+                <CardText>
+                    Squares you click on your board page are highlighted here too.
                 </CardText>
                 <CardText className="border p-2">
                     Your userboard link is:{" "}<a target="_blank" rel="noopener noreferrer" href={`/bingo/userboard/${user}/`}><code>{`${window.location.host}/bingo/userboard/${user}/`}</code></a>
@@ -578,6 +603,18 @@ export default class HelpAndGuides extends React.Component {
                     </li>
                     </ul>
                 </CardText>
+                <CardText className="text-center mt-3">
+                <h5>Custom colors</h5>
+                </CardText>
+                <CardText>
+                    Add CSS to the browser source's <b>Custom CSS</b> box. To recolor the board, set any of these:
+                </CardText>
+                <pre className="border p-2">{BINGO_CSS_VARS}</pre>
+                <CardText>
+                    To style anything else, target these classes, e.g.{" "}
+                    <code>{".bingo-square.is-partial { background-color: #554400; color: white; }"}</code>
+                </CardText>
+                {classRows}
                 <CardText className="text-center mt-3">
                 <h5>Common questions</h5>
                 </CardText>

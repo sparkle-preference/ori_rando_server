@@ -31,6 +31,7 @@ EXPECTED = [
     "GET /bingo/from_game/<int:game_id>",
     "GET /bingo/game/<int:game_id>/add/<int:player_id>",
     "GET /bingo/game/<int:game_id>/fetch",
+    "GET /bingo/game/<int:game_id>/marks/<int:player_id>",
     "GET /bingo/game/<int:game_id>/remove/<int:player_id>",
     "GET /bingo/game/<int:game_id>/reroll",
     "GET /bingo/game/<int:game_id>/reroll_board",
