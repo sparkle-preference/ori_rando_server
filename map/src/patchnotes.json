@@ -118,7 +118,7 @@
             "importance": "minor"
           },
           {
-            "text": "Practice files can now be installed and started via the [Rando app](/app), or drag-and-dropped into the game.",
+            "text": "Practice files can now be installed and started via the [Rando app](/app).",
             "category": "Game",
             "type": "feature",
             "importance": "minor"
