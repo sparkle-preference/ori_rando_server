@@ -816,7 +816,7 @@ export default class MainPage extends React.Component {
                 {switchRow("Remove logic checks", "logic", "enemyLogic", true)}
                 <Collapse isOpen={eo.logic === "off"}>
                     <Row className="p-1 justify-content-center"><Col xs={leftCol + rightCol} className="text-center text-danger">
-                        This can easily generate incompatible seeds!
+                        This can easily generate incompletable seeds!
                     </Col></Row>
                 </Collapse>
                 </div>

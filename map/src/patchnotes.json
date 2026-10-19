@@ -9,122 +9,134 @@
     "Misc",
     "Plando"
   ],
-  "pending": [
-    {
-      "text": "The Forlorn and Ginso escapes can now be retried from the beginning if left via warp or teleport (thanks to d265f27).",
-      "category": "Game",
-      "type": "feature",
-      "importance": "major",
-      "sub": [
-        "Retry escapes from their original starting position.",
-        "The Kuro hide-and-seek section after the Forlorn escape has been removed."
-      ]
-    },
-    {
-      "text": "As a consequence of escape retryability, the Forlorn escape plant is a regular pickup, in logic with Glide and blue breakage.",
-      "category": "Logic",
-      "importance": "minor"
-    },
-    {
-      "text": "Enemy Rando bugfixes.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor",
-      "sub": [
-        "The Forlorn escape's mortar worm stays a mortar worm.",
-        "Swarms, fronkeys and frogs no longer take spots with nothing below them."
-      ]
-    },
-    {
-      "text": "Added Enemies panel to customize what enemies appear in what slots.",
-      "category": "Plando",
-      "type": "feature",
-      "importance": "major",
-      "sub": [
-        "The [variant list](/enemies.txt) has a full list of enemy variants supported by the enemy randomizer.",
-        "You can also set an enemy location to be a bonus id. If you do and that bonus ID has a [valid variant number](/enemies.txt)  in it, that enemy will spawn there in place of the vanilla spawn."
-      ]
-    },
-    {
-      "text": "Enabled Enemy Rando for Archipelago.",
-      "category": "Multiplayer",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Archipelago: added Deaths per Death Link field next to the Death Link button.",
-      "category": "Multiplayer",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Several preplacement UI changes.",
-      "category": "Website",
-      "type": "feature",
-      "importance": "minor",
-      "sub": [
-        "Add Early (N) pseudo-locations, which place an item within the first N reachable locations.",
-        "Early... and Buried... in the location list now take any depth.",
-        "An Early or Buried item not in the item pool is now a warning, not an error.",
-        "The Preplacements help was rewritten, and the multiworld world and recipient dropdowns have their own.",
-        "The Seed tab shows Preplaced, Early and Buried Items chips per player; hover for the items.",
-        "Help text sets item codes and location names in code style."
-      ]
-    },
-    {
-      "text": "Balanced fill is now the assumed default and no longer shows in flaglines.",
-      "category": "Seed Generator",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Enemy Rando: drop slimes can now show up under many more ceilings.",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Enemy Rando: added the ability to remove logic checks. Off by default because it's bad.",
-      "category": "Game",
-      "importance": "minor"
-    },
-    {
-      "text": "Dirty Water is now a three-way setting: Partial (the new default) only makes the water look poisoned, Full adds gloom effects around it, and Disabled turns it off.",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor",
-      "sub": [
-        "Dirty Water"
-      ]
-    },
-    {
-      "text": "Archipelago: after updating the randomizer, connecting a room no longer needs a save loaded first.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "minor",
-      "tags": [
-        "Archipelago"
-      ]
-    },
-    {
-      "text": "Practice Mode: a segment's name is now its folder's name, and renaming it on the editor page renames the folder.",
-      "category": "Game",
-      "importance": "minor"
-    },
-    {
-      "text": "Practice Mode: drop a .bfrp from your practice folder onto the game window to start it (thanks to AsmPrgmC3).",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Bingo: warping into any scene of an area now counts for its Enter area goal.",
-      "category": "Bingo",
-      "type": "fix",
-      "importance": "minor"
-    }
-  ],
+  "pending": [],
   "releases": [
+      {
+        "version": "4.9.13",
+        "date": "2026-10-18",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "The Forlorn and Ginso escapes can now be retried from the beginning if left via warp or teleport (thanks d265f27!)",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "You can retry escapes from their original starting position.",
+              "The Kuro hide-and-seek section after the Forlorn escape has been removed."
+            ]
+          },
+          {
+            "text": "As a consequence of escape retryability, the Forlorn escape plant is a regular pickup, in logic with Glide and blue breakage.",
+            "category": "Logic",
+            "importance": "minor"
+          },
+          {
+            "text": "Enemy Rando bugfixes.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "The Forlorn escape's mortar worm stays a mortar worm.",
+              "Swarms, fronkeys and frogs no longer spawn when there's nothing below them."
+            ]
+          },
+          {
+            "text": "Added Enemies panel to allow customizing what enemies appear where.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The [variant list](/enemies.txt) has a full list of enemy variants supported by the enemy randomizer.",
+              "You can also set an enemy location to be a bonus ID. If you do and that bonus ID has a [valid variant number](/enemies.txt) in it, that enemy will spawn there in place of the vanilla spawn."
+            ]
+          },
+          {
+            "text": "Enabled Enemy Rando for Archipelago.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Archipelago: added Deaths per Death Link field next to the Death Link button.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Several preplacement UI changes.",
+            "category": "Website",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "Add Early (N) pseudo-locations, which place an item within the first N reachable locations.",
+              "Early... and Buried... in the location list now take any depth.",
+              "An Early or Buried item not in the item pool is now a warning, not an error.",
+              "The Preplacements help was rewritten, and the multiworld world and recipient dropdowns have their own.",
+              "The Seed tab shows Preplaced, Early and Buried Items chips per player; hover for the items.",
+              "Help text sets item codes and location names in code style."
+            ]
+          },
+          {
+            "text": "Balanced fill is now the assumed default and no longer shows in flaglines.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Enemy Rando: drop slimes can now show up under many more ceilings.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Enemy Rando: added the ability to remove logic checks. Off by default because it's bad.",
+            "category": "Game",
+            "importance": "minor"
+          },
+          {
+            "text": "Dirty Water is now a three-way setting: Partial (the new default) only makes the water look poisoned, Full adds gloom effects around it, and Disabled turns it off.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "Dirty Water"
+            ]
+          },
+          {
+            "text": "Archipelago: after updating the randomizer, connecting a room no longer needs a save loaded first.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "Practice Mode: a segment's name is now its bfrp/folder's name, and renaming it on the editor page renames the folder.",
+            "category": "Game",
+            "importance": "minor"
+          },
+          {
+            "text": "Practice files can now be installed and started via the [Rando app](/app), or drag-and-dropped into the game.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Several small improvements to the Rando app (full list [here](https://github.com/ori-community/bf-rando-installer/releases/tag/v1.6.0)).",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Bingo: warping into any scene of an area now counts for its Enter area goal.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          }
+        ]
+      },
       {
         "version": "4.9.12",
         "date": "2026-10-12",
