@@ -22,6 +22,7 @@ from web.pages import bp as pages_bp
 from web.tracker import bp as tracker_bp
 from web.users import bp as users_bp
 from web.patchnotes import bp as patchnotes_bp
+from web.seedstats import bp as seedstats_bp
 
 
 def configure_logging():
@@ -74,4 +75,5 @@ def create_app():
     app.register_blueprint(presets_bp)
     app.register_blueprint(pages_bp)
     app.register_blueprint(patchnotes_bp)
+    app.register_blueprint(seedstats_bp)
     return app

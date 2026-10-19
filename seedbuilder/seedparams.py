@@ -446,7 +446,7 @@ class SeedGenParams(ndb.Model):
         return params
 
     @staticmethod
-    def from_json(json):
+    def from_json(json, store=True):
         params = SeedGenParams()
         seed = json.get("seed")
         params.seed = "" if seed is None else str(seed)
@@ -515,7 +515,8 @@ class SeedGenParams(ndb.Model):
             if bad:
                 log.error("Unknown AP export categories %r! returning None", bad)
                 return None
-        return params.put()
+        # store=False hands back the entity unsaved, for rolls nobody keeps
+        return params.put() if store else params
 
     @staticmethod
     def from_url(qparams):
@@ -687,7 +688,7 @@ class SeedGenParams(ndb.Model):
         return out
 
 
-    def generate(self, preplaced={}):
+    def generate(self, preplaced={}, store=True):
         if self.placements:
             preplaced = {}
             for placement in self.placements:
@@ -699,6 +700,7 @@ class SeedGenParams(ndb.Model):
                 preplaced[(world, int(placement.location))] = value
             self.placements = []
         sg = SeedGenerator()
+        self._store = store
         raw = sg.setSeedAndPlaceItems(self, preplaced=preplaced)
         self._gen_warnings = [{"level": level, "text": text} for text, level in getattr(sg, "gen_warnings", {}).items()]
         placemap = OrderedDict()
@@ -745,7 +747,8 @@ class SeedGenParams(ndb.Model):
             return False
         self.spoilers = spoilers
         self.placements = list(placemap.values())
-        self.put()
+        if store:
+            self.put()
         return True
 
     def teams_inv(self):  # generates {pid: tid}

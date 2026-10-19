@@ -13,6 +13,7 @@ import HelpAndGuides from './HelpAndGuides';
 import PatchNotes from './PatchNotes';
 import Bingo from './Bingo';
 import AIUse from './AIUse';
+import SeedStats from './SeedStats';
 
 const mods = {
     ItemTracker,
@@ -25,7 +26,8 @@ const mods = {
     HelpAndGuides,
     PatchNotes,
     Bingo,
-    AIUse
+    AIUse,
+    SeedStats
 };
 
 // Shows what broke, reports it, and offers two ways back in. Plain buttons: the theme may

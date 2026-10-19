@@ -127,6 +127,7 @@ EXPECTED = [
     "GET /user/link/new",
     "GET /user/settings",
     "GET /user/settings/name-free",
+    "GET /seedstats",
     "GET /vanilla",
     "GET /version",
     "GET /version/beta",
@@ -149,6 +150,7 @@ EXPECTED = [
     "POST /preset/edit",
     "POST /preset/import",
     "POST /preset/save",
+    "POST /seedstats/roll",
     "POST /user/settings/update",
 ]
 

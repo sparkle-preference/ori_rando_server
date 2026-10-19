@@ -1954,7 +1954,8 @@ class SeedGenerator:
             self.params.spawn = self.start
             self.params.spawns = spawns
             self.params.enemy_rolls = enemy_rolls
-            self.params.put()
+            if getattr(self.params, "_store", True):
+                self.params.put()
         return placements
 
     def mw_manifest(self, p):
