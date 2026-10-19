@@ -135,7 +135,7 @@ class EnemyPanel extends React.Component {
                 </div>
                 <div className="box-buttons">
                     <Button color="secondary" disabled={!changed_count(rolls)} onClick={() => this.props.onChange(vanilla_rolls())}
-                            title="Reset all enemy location assignments to default.">Reset all enemy location assignments to default</Button>
+                            title="Reset all enemy location assignments to default.">Reset all</Button>
                     <Input className="enemy-filter" placeholder="Filter by scene, coordinates or kind" value={filter}
                            onChange={e => this.setState({filter: e.target.value})}/>
                     <a className="enemy-list-link" href="/enemies.txt" target="_blank" rel="noopener noreferrer" title="Lists each enemy variant and their base stats">variant list</a>

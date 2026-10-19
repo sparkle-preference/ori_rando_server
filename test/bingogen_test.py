@@ -9,8 +9,8 @@ Run from the repo root:  python3 -m unittest test.bingogen_test -v
 import random
 import unittest
 
-from bingo import (BingoGenerator, DefeatGoal, JourneyGoal, defeat_key, defeat_zones, journey_key,
-                   journey_pairs, spawn_early_zones, DEFEAT_ZONES, SPAWN_AREAS, SPAWN_CLUSTER,
+from bingo import (BingoGenerator, DefeatGoal, JourneyGoal, a_kind, defeat_key, defeat_zones, journey_key,
+                   journey_pairs, spawn_early_zones, DEFEAT_HELP, DEFEAT_ZONES, SPAWN_AREAS, SPAWN_CLUSTER,
                    SPAWN_TELEPORTERS)
 
 # BingoEnemyKinds.Kinds and RandomizerTrackedDataManager.Zones in the client, verbatim:
@@ -395,8 +395,28 @@ class TestDefeatData(unittest.TestCase):
         self.assertIn("Sharks", CLIENT_KINDS)
         self.assertNotIn("Sharks", DEFEAT_ZONES)
 
+    def test_elementals_live_in_horu_and_horu_fields_and_the_ginso_arena(self):
+        self.assertEqual(defeat_zones()["Elementals"], ["Horu", "Grove"])
+        self.assertIn("Ginso", defeat_zones(hard=True)["Elementals"])
+
+    def test_every_target_kind_says_what_it_is(self):
+        self.assertEqual(set(DEFEAT_HELP), set(DEFEAT_ZONES))
+
     def test_key_is_kind_dash_zone(self):
         self.assertEqual(defeat_key("Slimes", "Glades"), "Slimes-Glades")
+
+    def test_a_vowel_takes_an(self):
+        self.assertEqual(a_kind("Elementals"), "an Elemental")
+        self.assertEqual(a_kind("Slimes"), "a Slime")
+
+    def test_a_card_describes_the_kinds_it_names(self):
+        for seed in range(40):
+            card = DefeatGoal(defeat_zones(True), lambda: 3).to_card(random.Random(seed))
+            kind = next(k for k in DEFEAT_ZONES if card.disp_name.startswith("Defeat " + a_kind(k) + " "))
+            self.assertEqual(card.help_lines[0], DEFEAT_HELP[kind])
+            card = DefeatGoal(defeat_zones(True), lambda: 3, by_zone=True).to_card(random.Random(seed))
+            named = {k for k in DEFEAT_ZONES for sg in card.subgoals if sg["name"].startswith(k + "-")}
+            self.assertEqual(card.help_lines[:len(named)], [DEFEAT_HELP[k] for k in sorted(named)])
 
 
 class TestDefeatCards(unittest.TestCase):

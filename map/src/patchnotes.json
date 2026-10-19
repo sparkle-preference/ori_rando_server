@@ -9,7 +9,14 @@
     "Misc",
     "Plando"
   ],
-  "pending": [],
+  "pending": [
+    {
+      "text": "Bingo: Elementals can show up on Defeat goals, and each Defeat card says what the enemies it names are.",
+      "category": "Bingo",
+      "type": "feature",
+      "importance": "minor"
+    }
+  ],
   "releases": [
       {
         "version": "4.9.13",

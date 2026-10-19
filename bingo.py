@@ -298,12 +298,31 @@ DEFEAT_ZONES = {
     "Rhinos":   {"default": ["Swamp",  "Valley", "Grove", "Grotto", "Misty"]},
     "Fish":     {"default": ["Blackroot",  "Swamp", "Valley", "Glades", "Grove"], "hard": ["Horu"]},
     "Swarms":   {"default": ["Grove",  "Horu", "Swamp", "Grotto"], "hard": ["Blackroot", "Misty"]},
+    "Elementals": {"default": ["Horu", "Grove"], "hard": ["Ginso"]},
 }
 
 DEFEAT_SINGULAR = {
     "Slimes": "Slime", "Spitters": "Spitter", "Frogs": "Frog", "Fronkeys": "Fronkey", "Spiders": "Spider",
-    "Birds": "Bird", "Fish": "Fish", "Rhinos": "Rhino", "Swarms": "Swarm",
+    "Birds": "Bird", "Fish": "Fish", "Rhinos": "Rhino", "Swarms": "Swarm", "Elementals": "Elemental",
 }
+
+# what each kind is, first on a card that names it
+DEFEAT_HELP = {
+    "Slimes": "Slimes are the crawling enemies that cling to floors, walls, and ceilings, firing unbashable projectiles in sets of three.",
+    "Spitters": "Spitters are the stationary worm-like enemies that emerge from holes to spit bashable projectiles at you.",
+    "Frogs": "Frogs are the squat round amphibian enemies that fire bashable projectiles with a slow arc.",
+    "Fronkeys": "Fronkeys are the jumping enemies that look like a weird cross between a frog and a monkey.",
+    "Spiders": "Spiders hang in the air and shoot at you.",
+    "Birds": "Birds are birds. (Kuro cannot be defeated by Ori, so whether or not she counts as a bird for the purposes of this card is unknowable.)",
+    "Fish": "Fish are fish. They live in the water.",
+    "Rhinos": "Rhinos are the grey charging enemies with an outer shell that must be broken before they can be damaged.",
+    "Swarms": "Swarms are the large, blob-shaped, slow-moving enemies that split apart when hit.",
+    "Elementals": "Elementals are the angry floating rocks that shoot bashable projectiles. (The red kind also fires lasers.)",
+}
+
+def a_kind(kind):
+    singular = DEFEAT_SINGULAR[kind]
+    return ("an " if singular[0] in "AEIOU" else "a ") + singular
 
 def defeat_key(kind, zone):
     return "%s-%s" % (kind, zone)
@@ -345,10 +364,11 @@ class DefeatGoal(BingoGoal):
         # the board appends the ":" and lists the subgoals under it
         if self.by_zone:
             disp = "Defeat in %s" % subject
-            subgoals = [(defeat_key(kind, subject), "a " + DEFEAT_SINGULAR[kind]) for kind in picks]
+            subgoals = [(defeat_key(kind, subject), a_kind(kind)) for kind in picks]
         else:
-            disp = "Defeat a %s in %s" % (DEFEAT_SINGULAR[subject], "zone" if len(picks) == 1 else "zones")
+            disp = "Defeat %s in %s" % (a_kind(subject), "zone" if len(picks) == 1 else "zones")
             subgoals = [(defeat_key(subject, zone), zone) for zone in picks]
+        kinds = picks if self.by_zone else [subject]
         zones = [subject] if self.by_zone else picks
         needs = [ZONE_NEEDS[zone] for zone in zones if zone in ZONE_NEEDS]
         needs += [need for key, _ in subgoals for need in DEFEAT_NEEDS.get(key, ())]
@@ -356,7 +376,7 @@ class DefeatGoal(BingoGoal):
             needs = needs,
             name = self.name,
             disp_name = disp,
-            help_lines = [str(l) for l in self.help_lines],
+            help_lines = [DEFEAT_HELP[kind] for kind in sorted(kinds)] + [str(l) for l in self.help_lines],
             goal_type = "multi",
             early = False
         )

@@ -432,6 +432,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                     title = "Legacy Kuro Behavior"
                     lines = [
                         "The Legacy Kuro Behavior variation reverts to the vanilla and pre-3.0 randomizer behavior for the Kuro kill plane in Valley and the Kuro cutscene in Hollow Grove. Both of these will only exist once you've acquired the Stomp skill.",
+                        "It also keeps Kuro's hide-and-seek after the Forlorn escape, which other seeds skip.",
                         "This variation will be overridden if you select Open World, which removes the killplane and cutscene completely.",
                         "This variation exists primarily for legacy reasons and is not recommended for normal use."
                     ]
