@@ -27,6 +27,30 @@
       "category": "Bingo",
       "type": "feature",
       "importance": "minor"
+    },
+    {
+      "text": "With Disable Temporary Resource Rows on, health and energy past your max now show dimmed in the bar, at the Temp Row Brightness setting.",
+      "category": "Game",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Ghosts: when another player's ghost can't connect, even through the relay, the game now says so (it's usually a firewall or VPN).",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "Practice Mode: playing a .bfrp file no longer offers Edit Practice Segment in the pause menu; segment folders still do.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Legacy Kuro Behavior now also keeps Kuro's hide-and-seek after the Forlorn escape, so the vanilla seed has it too.",
+      "category": "Seed Generator",
+      "type": "feature",
+      "importance": "minor"
     }
   ],
   "releases": [
