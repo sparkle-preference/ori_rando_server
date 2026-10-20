@@ -1,4 +1,5 @@
 """The scenarios. Each takes a LocalStack, returns a Judge."""
+import json
 import time
 
 import requests
@@ -523,6 +524,64 @@ def ap_enemy_rando(stack):
     return j
 
 
+def ap_bingo_goal(stack):
+    """An Archipelago bingo seed: each world plays its own board, and winning one is that world's
+    goal in a real room. World 1 wins; world 2 plays a little and stays open."""
+    j = Judge("ap_bingo_goal")
+    if not docker_ok():
+        j.check("skipped: docker or %s missing" % AP_IMAGE, True)
+        return j
+    params = base_params("mock-ap-bingo", players=2, apMode=True,
+                         apExport=["skills", "teleporters", "events"], variations=["Bingo", "ForceTrees"])
+    rolled = Rolled(stack, params)
+    rolled.start_bingo(lines=1, difficulty="easy")
+    board = rolled.fetch_board()
+    j.equal("a board per world", sorted((board.get("boards") or {}).keys()), ["1", "2"])
+
+    with ApRoom(stack, rolled.param_id) as room:
+        r = requests.post("%s/netcode/game/%s/ap/connect" % (stack.base_url, rolled.game_id),
+                          data={"host": room.host, "port": str(room.port), "password": ""}, timeout=90)
+        j.equal("ap/connect took the room", r.status_code, 200)
+        j.check("the room says our slot joined", room.wait_for(" has joined.", timeout=60), room.logs()[-600:])
+        # the download gate wants every world's scout row
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            status = _ap_status(stack, rolled.game_id)
+            total, done = status.get("names_total") or [], status.get("names_resolved") or []
+            if status.get("status") == "connected" and len(total) == 2 and done == total:
+                break
+            time.sleep(0.5)
+        j.equal("the bridge reports connected", status.get("status"), "connected")
+        j.equal("no world has its goal yet", status.get("goal_worlds"), [])
+
+        c1 = WsClient(stack.base_url, rolled.seed_text(1), tick_period=0.12, rng_seed=1)
+        c2 = WsClient(stack.base_url, rolled.seed_text(2), tick_period=0.12, rng_seed=2)
+        j.check("both seeds carry bingo", c1.seed.bingo and c2.seed.bingo)
+        _, g1 = fetch_goals(stack, rolled.game_id, 1)
+        _, g2 = fetch_goals(stack, rolled.game_id, 2)
+        # every square on world 1's board: one line wins it; world 2 finishes a single square
+        c1.plan = [(4 + i, "complete_goal", (g,)) for i, g in enumerate(sorted(goal_shapes_from(g1)))]
+        c2.plan = [(4, "complete_goal", (sorted(goal_shapes_from(g2))[0],))]
+        run_clients(c1, c2)
+        j.check("the clients played without errors", not c1.errors and not c2.errors,
+                "%r %r" % (c1.errors, c2.errors))
+
+        deadline = time.time() + 45
+        while time.time() < deadline:
+            status = _ap_status(stack, rolled.game_id)
+            if status.get("goal_worlds"):
+                break
+            time.sleep(0.5)
+        j.equal("world 1's win is its goal, and only its", status.get("goal_worlds"), [1])
+        j.check("the room heard the goal", room.wait_for("has completed their goal", timeout=45),
+                "room never logged a goal: %s" % room.logs()[-800:])
+        j.check("the link stayed healthy", not status.get("last_error"), repr(status.get("last_error")))
+        teams = rolled.fetch_board().get("teams") or {}
+        j.check("the board places world 1", (teams.get("1") or {}).get("place"), json.dumps(teams)[:400])
+        j.check("world 2 has not won", not (teams.get("2") or {}).get("place"), json.dumps(teams)[:400])
+    return j
+
+
 ALL = [solo_ws, solo_legacy, mw2, mw_bingo_solo_optin, mw_bingo_two_boards,
-       mw_bingo_no_owner, ap_real_room, ap_enemy_rando, bingo_reroll_flow, mw4_concurrency,
-       shared_bingo_teams, ws_fallback_limit]
+       mw_bingo_no_owner, ap_real_room, ap_enemy_rando, ap_bingo_goal, bingo_reroll_flow,
+       mw4_concurrency, shared_bingo_teams, ws_fallback_limit]

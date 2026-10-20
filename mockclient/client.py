@@ -68,6 +68,9 @@ class MockClient(threading.Thread):
         # ticks to keep draining after the plan ends: late slot grants, goals
         # frames and acks arrive on the server's schedule, not ours
         self.linger = 20
+        # run_clients' other clients; settled once this one's finds are all acked
+        self.peers = []
+        self.settled = False
 
         # legacy seeds baked the goals in; the 4.3 flow asks the server instead
         if self.seed.bingo and self.seed.goals_line:
@@ -159,7 +162,7 @@ class MockClient(threading.Thread):
         try:
             self.connect()
             plan = sorted(self.plan)
-            idle = 0
+            idle = calm = 0
             while True:
                 self.tick_no += 1
                 self.drain()
@@ -175,17 +178,21 @@ class MockClient(threading.Thread):
                         self._bingo_timer = 5
                         self.post_bingo()
                 if not plan and self._sending is None and not self._found_queue:
+                    self.settled = True
                     if self.send_complete and self.completeack is None:
                         if self.tick_no % 3 == 0 or idle == 0:
                             self.request_complete()
-                    elif idle > self.linger:
+                    elif idle > self.linger and calm > self.linger:
                         break
                     idle += 1
+                # a peer's last find can still grant here, so linger past it too
+                calm = calm + 1 if all(p.settled for p in self.peers) else 0
                 time.sleep(self.period)
             if self.bingo_goals:
                 self.post_bingo()
             self.disconnect()
         except Exception as e:
+            self.settled = True
             self.errors.append("%s: %r" % (self.label, e))
 
 
@@ -343,7 +350,8 @@ class WsClient(MockClient):
             elif g["kind"] == "int":
                 data[name] = {"value": int(g["value"] or 0)}
             else:
-                total = len(g["done"]) if g["done"] or not g["value"] else 9999
+                counted = g["target"] == "count" and g["value"]
+                total = 9999 if counted else len(g["done"]) if g["done"] or not g["value"] else 9999
                 data[name] = {"value": {s: {"value": True} for s in g["done"]},
                               "total": total}
         body = json.dumps(data)

@@ -57,8 +57,8 @@ def goal_shapes_from(line):
                     out[base] = ("int", [], int(tgt))
                 else:
                     out[s] = ("bool", [], None)
-        elif sublist == ["COUNT"]:
-            out[name] = ("multi", [], None)
         else:
-            out[name] = ("multi", sublist, None)
+            # COUNT is a flag, not a subgoal: a count card shares this name, so post a count too
+            subs = [s for s in sublist if s != "COUNT"]
+            out[name] = ("multi", subs, "count" if "COUNT" in sublist else None)
     return out

@@ -94,6 +94,8 @@ class Judge(object):
 
 def run_clients(*clients, timeout=120):
     for c in clients:
+        c.peers = [p for p in clients if p is not c]
+    for c in clients:
         c.start()
     for c in clients:
         c.join(timeout)
