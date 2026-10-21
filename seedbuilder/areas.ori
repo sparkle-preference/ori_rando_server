@@ -1894,53 +1894,53 @@ home: TopGinsoTree 520 558
 		master Stomp DoubleJump Glide Health=3
 		master Stomp DoubleJump Dash Health=3
 home: GinsoEscape 518 626
-    -- anchor: starting the escape
+	-- anchor: starting the escape
 	pickup: GinsoEscapeSpiderExp
-        casual Bash DoubleJump
-        standard Bash
-        expert ChargeJump Climb
-        expert ChargeJump WallJump
-        master ChargeJump DoubleJump
-        master WallJump TripleJump UltraDefense Health=2
-        master Climb TripleJump UltraDefense Health=2
-        insane TripleJump UltraDefense Health=2
+		casual Bash DoubleJump
+		standard Bash
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=2
+		master Climb TripleJump UltraDefense Health=2
+		insane TripleJump UltraDefense Health=2
 	pickup: GinsoEscapeJumpPadExp
-        casual Bash DoubleJump
-        standard Bash
-        expert ChargeJump Climb
-        expert ChargeJump WallJump
-        master ChargeJump DoubleJump
-        master WallJump TripleJump UltraDefense Health=4
-        master Climb TripleJump UltraDefense Health=4
-        insane TripleJump UltraDefense Health=4
+		casual Bash DoubleJump
+		standard Bash
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=4
+		master Climb TripleJump UltraDefense Health=4
+		insane TripleJump UltraDefense Health=4
 	pickup: GinsoEscapeProjectileExp
-        casual Bash DoubleJump WallJump
-        casual Bash DoubleJump ChargeJump
-        standard Bash Climb Health=3
-        standard Bash WallJump
-        standard Bash ChargeJump
-        expert ChargeJump Climb
-        expert ChargeJump WallJump
-        expert DoubleBash
-        master ChargeJump DoubleJump
-        master WallJump TripleJump UltraDefense Health=4
-        master Climb TripleJump UltraDefense Health=4
-        insane TripleJump UltraDefense Health=4
-	pickup: GinsoEscapeHangingExp
-        casual Bash DoubleJump WallJump
-        casual Bash DoubleJump ChargeJump Climb
-        standard Bash Climb Health=3
-        standard Bash WallJump
-        expert ChargeJump Climb
-        expert ChargeJump WallJump
-        expert DoubleBash
-        master ChargeJump DoubleJump
-        master WallJump TripleJump UltraDefense Health=4
-        master Climb TripleJump UltraDefense Health=4
-        insane TripleJump UltraDefense Health=5
-    conn: GinsoEscapeComplete
 		casual Bash DoubleJump WallJump
-        casual Bash DoubleJump ChargeJump Climb
+		casual Bash DoubleJump ChargeJump
+		standard Bash Climb Health=3
+		standard Bash WallJump
+		standard Bash ChargeJump
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		expert DoubleBash
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=4
+		master Climb TripleJump UltraDefense Health=4
+		insane TripleJump UltraDefense Health=4
+	pickup: GinsoEscapeHangingExp
+		casual Bash DoubleJump WallJump
+		casual Bash DoubleJump ChargeJump Climb
+		standard Bash Climb Health=3
+		standard Bash WallJump
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		expert DoubleBash
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=4
+		master Climb TripleJump UltraDefense Health=4
+		insane TripleJump UltraDefense Health=5
+	conn: GinsoEscapeComplete
+		casual Bash DoubleJump WallJump
+		casual Bash DoubleJump ChargeJump Climb
 		standard Bash Climb Health=3
 		standard Bash WallJump
 		expert ChargeJump Climb DoubleJump
