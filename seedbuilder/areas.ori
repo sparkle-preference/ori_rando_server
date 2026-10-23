@@ -4431,6 +4431,15 @@ home: ForlornEscapeStart -732 -236
 	-- the escape can be restarted from here
 	conn: ForlornEscapeEnd
 		casual Glide
+		-- the expert path has 3 extra health for leniency
+		expert Bash Grenade Climb ChargeJump DoubleJump Health=7
+		master Bash Grenade Climb TripleJump UltraDefense Health=2
+		master Climb ChargeJump ChargeDash TripleJump UltraDefense Health=3 Energy=1
+		master GrenadeJump Health=6
+		master GrenadeJump DoubleJump Health=5
+		master GrenadeJump Bash Health=4
+		master GrenadeJump ChargeDash Health=4 Energy=1
+		master GrenadeJump Bash ChargeDash Health=3 Energy=1
 home: ForlornEscapeEnd -1232 -248
 	-- anchored at the plant inside the escape
 	pickup: ForlornEscapePlant
