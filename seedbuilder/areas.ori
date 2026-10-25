@@ -5186,6 +5186,8 @@ home: MistyPostKeystone1 -1028 16
 		-- 2hp from bird, 3hp from spikes, you can get around the last bend without damage
 home: MistyPreMortarCorridor -1058 5
 	-- anchor point: right of the slime pre mortar corridor atop the wall
+	conn: MistyPreKeystone2
+		casual Free
 	pickup: MistyMortarCorridorUpperExp
 		casual Bash Glide
 		standard Bash Grenade
