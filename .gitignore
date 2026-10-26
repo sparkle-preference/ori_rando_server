@@ -21,3 +21,7 @@ server_in.json
 server_out.json
 ap_in.json
 ap_out.json
+
+# property suite
+.hypothesis/
+test/node_modules

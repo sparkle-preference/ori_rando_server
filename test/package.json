@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "node deps for test/*_props.mjs only",
+  "devDependencies": {
+    "fast-check": "4.10.2"
+  }
+}
