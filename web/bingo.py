@@ -165,8 +165,8 @@ def _bingo_reroll_board_inner(game_id):
     seed = param_val("seed") or bingo.seed or ""
     if seed == (bingo.seed or ""):
         seed = bump_board_seed(seed)  # a reroll has to move the board even when nothing else changed
-    d, lockout, meta = _bingo_query_opts()
     reroll_params = game.fetch_params() if game and game.params else None
+    d, lockout, meta = _bingo_query_opts(per_world=bool(bingo.boards and reroll_params))
     if bingo.boards and reroll_params:
         # ?world= is the board the modal was opened on, else the roller's
         owner = owner_world([wb.world for wb in bingo.boards], param_val("world"))
@@ -629,11 +629,11 @@ def bingo_userboard_tick(name, game_id):
     return json_resp(res)
 
 
-def _bingo_query_opts():
+def _bingo_query_opts(per_world=False):
     """The board options every bingo creation route reads the same way."""
-    return (param_int("discCount", 0, 0, 25),
-            bool(param_int("lockout", 0)),
-            param_flag("meta"))
+    # separate boards never share a square to take, and a lockout board gets no meta squares
+    lockout = bool(param_int("lockout", 0)) and not per_world
+    return param_int("discCount", 0, 0, 25), lockout, param_flag("meta") and not lockout
 
 
 def _bingo_setup_tail(bingo, now, gid, claim=True):
@@ -709,7 +709,7 @@ def add_bingo_to_game(game_id):
         rand = random.Random()
         rand.seed(seed)
 
-        d, lockout, meta = _bingo_query_opts()
+        d, lockout, meta = _bingo_query_opts(per_world=bool(mw_bingo_worlds(params)))
         test_iters = param_int("testIters", 0, 0, TEST_ITERS_MAX)
         if test_iters: # this is like having test code
             edges = [0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]

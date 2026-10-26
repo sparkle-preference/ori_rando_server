@@ -757,6 +757,7 @@ class SeedGenerator:
 
         self.spawn_things = {}
         self.spawn_shared_things = {}
+        self.spawn_keys = defaultdict(set)
         for p in self.multi_ps():
             start = self.starts[p]
             starting_health, starting_energy = self.starting_health, self.starting_energy
@@ -806,6 +807,8 @@ class SeedGenerator:
             shared_things = []
 
             def spawn_add(name, out):
+                if name in ("GinsoKey", "ForlornKey", "HoruKey"):
+                    self.spawn_keys[p].add(name)
                 (shared_things if name in self.shared_pool_bases else things).append(out)
 
             base_hc = self.inventory[tag("HC", p)]
@@ -964,6 +967,8 @@ class SeedGenerator:
             key_order = self.random.sample(list(dungeonLocs.keys()), 3)
             if self.solo():
                 for key in key_order:
+                    if key in self.spawn_keys[1]:
+                        continue  # a dungeon start already hands out its own key
                     loc = self.random.choice([l for l in self.limitKeysPool if l not in dungeonLocs[key]])
                     self.limitKeysPool.remove(loc)
                     for key_to_update in ["GinsoKey", "ForlornKey"]:
@@ -976,7 +981,17 @@ class SeedGenerator:
                 all_dungeon_locked = set().union(*dungeonLocs.values())
                 pools = {w: list(self.limitKeysPool) for w in self.multi_ps()}
                 for key in key_order:
-                    owners = self.random.sample(limitkey_ps, len(limitkey_ps))
+                    if self.is_shared_base(key):
+                        # a shared key is one pool entry for every world: one copy, on any world
+                        if any(key in self.spawn_keys[w] for w in self.multi_ps()):
+                            continue
+                        host = self.random.choice(list(self.multi_ps()))
+                        loc = self.random.choice([l for l in pools[host] if l not in all_dungeon_locked])
+                        pools[host].remove(loc)
+                        self.forcedAssignments[(host, loc)] = key
+                        continue
+                    owners = [o for o in self.random.sample(limitkey_ps, len(limitkey_ps))
+                              if key not in self.spawn_keys[o]]
                     # any world may host; if every world is eligible the shuffled owners already randomize pairing
                     hosts = (list(self.multi_ps()) if len(limitkey_ps) == self.seed_count
                              else self.random.sample(list(self.multi_ps()), len(limitkey_ps)))

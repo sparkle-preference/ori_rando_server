@@ -126,6 +126,7 @@ def report_runs(draw, most=40):
     return draw(st.lists(report, min_size=n, max_size=n))
 
 
+# a lockout board has no meta squares
 update_scenarios = st.fixed_dictionaries({
     "roster": st.sampled_from(ROSTERS),
     "lockout": st.booleans(),
@@ -133,7 +134,7 @@ update_scenarios = st.fixed_dictionaries({
                       st.tuples(st.just("bingos"), st.integers(1, 4))),
     "metas": activate_cards(),
     "reports": report_runs(),
-})
+}).map(lambda sc: dict(sc, metas={}) if sc["lockout"] else sc)
 
 
 def stub_player_txns(tc):

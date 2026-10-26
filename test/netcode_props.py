@@ -28,16 +28,6 @@ FOUND_TOKEN = "7"
 FAILURES = st.sampled_from([None, None, None, (0, False), (0, True), (1, False), (1, True)])
 
 
-def multipickup_seen_before_found(code, delivered):
-    """A multipickup whose seen bit reaches the server before its find."""
-    return code == "MU" and not delivered
-
-
-def release_passes_over_multipickup_slots(code, children, delivered):
-    """An unfound multipickup holding another world's item at release."""
-    return code == "MU" and not delivered and any(kind == "slot" for kind, _ in children)
-
-
 def grant_committed_then_failed(flaky):
     """A grant txn that commits and then raises."""
     return flaky.fired and flaky.calls[-1][1]
@@ -132,11 +122,9 @@ class MultiworldGrants(RuleBasedStateMachine):
 
     def _released(self, w):
         for c in sorted(self.lines[w]):
-            children = self._children(w, c)
-            skipped = release_passes_over_multipickup_slots(self.lines[w][c][0], children, c in self.delivered[w])
-            for kind, p in children:
+            for kind, p in self._children(w, c):
                 if kind == "slot":
-                    (self.maybe_owed if skipped else self.owed)[p.owner].add(p.slot)
+                    self.owed[p.owner].add(p.slot)
             copies = self._shared_copies(w, c)
             if copies and (w, c) not in self.claimed:
                 for key, p in copies:
@@ -176,9 +164,7 @@ class MultiworldGrants(RuleBasedStateMachine):
     def tick(self, w, picks):
         w = self._world(w)
         self._pick_up(w, picks)
-        seen = [c for c in self.picked[w]
-                if not multipickup_seen_before_found(self.lines[w][c][0], c in self.delivered[w])]
-        status, body = H.request(netcode.tick, self.gid, w, H.tick_payload(seen))
+        status, body = H.request(netcode.tick, self.gid, w, H.tick_payload(self.picked[w]))
         assert status == 200, (status, body)
         if w in self.unbusted:
             return
@@ -701,13 +687,11 @@ class MultipickupsGrantLikeSingles(H.EmulatedCase):
         p = H.request(H.fresh_player, self.gid, 2)
         return p.skills or 0, H.slots_of(p.slot_bflds)
 
-    @unittest.expectedFailure
     def test_a_multipickup_seen_before_its_find_still_grants(self):
         H.request(netcode.tick, self.gid, 1, H.tick_payload([self.c]))
         H.request(netcode.found_pickup, self.gid, 1, str(self.c), self.code, self.id, {"zone": H.ZONE})
         self.assertEqual(self._p2(), (Pickup.n("SK", "4").bit, {0}))
 
-    @unittest.expectedFailure
     def test_a_release_hands_over_an_unfound_multipickups_slots(self):
         H.request(netcode.game_complete, self.gid, 1)
         self.assertEqual(self._p2(), (Pickup.n("SK", "4").bit, {0}))

@@ -1,6 +1,6 @@
 """Request-lifecycle hooks every route gets. Family-specific hooks live with their blueprint."""
 
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 from flask import Response, get_flashed_messages, redirect, request, session
 from flask_oidc.signals import after_logout
@@ -23,7 +23,10 @@ def canonical_host_redirect():
         return
     if request.method not in ("GET", "HEAD") or request.path.startswith("/netcode/"):
         return
-    target = request.full_path if request.query_string else request.path
+    # request.path is decoded; re-quote it so %3F, %23 and %25 still name the same path
+    target = quote(request.path, safe="/:@!$&'()*+,;=-._~")
+    if request.query_string:
+        target += "?" + request.query_string.decode("latin-1")
     return redirect("https://%s%s" % (util.CANONICAL_HOST, target), 301)
 
 

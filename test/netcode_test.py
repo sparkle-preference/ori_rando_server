@@ -333,6 +333,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         self._chunked = Player.append_hl_chunked_txn
         self._stxn = Player.signal_send_txn
         self._ctxn = Player.claim_shared_released_txn
+        self._utxn = Player.unclaim_shared_released_txn
         self._hist = Game.mark_history_txn
         Game.mark_history_txn = staticmethod(lambda key: None)
 
@@ -343,6 +344,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         Player.append_hl_chunked_txn = self._chunked
         Player.signal_send_txn = self._stxn
         Player.claim_shared_released_txn = self._ctxn
+        Player.unclaim_shared_released_txn = self._utxn
         Game.mark_history_txn = self._hist
         super(TestMultiworldFoundPickup, self).tearDown()
 
@@ -366,6 +368,8 @@ class TestMultiworldFoundPickup(NdbTestCase):
             lambda pkey, slots: sum(1 for s in slots if by_key[pkey].mark_slot(s)))
         Player.claim_shared_released_txn = staticmethod(
             lambda pkey, coords: by_key[pkey].claim_shared_released(coords))
+        Player.unclaim_shared_released_txn = staticmethod(lambda pkey, coords: setattr(
+            by_key[pkey], "shared_released", [c for c in by_key[pkey].shared_released if c not in coords]))
         # release's finish message rides the txn variant now; land it on the
         # in-memory entity so tests can read p.signals
         Player.signal_send_txn = staticmethod(
@@ -449,7 +453,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         """Regression (game 136058): shared items are local lines with no slot,
         so the slot pass cannot see them and a finished world kept them."""
         g, finder, owner = self._game(shared=["Skills"])
-        finder.seen_coords = lambda: [400, 2]  # SK|0 already picked up
+        finder.shared_released = [400]  # SK|0's find already handed it out
         released = g.mw_release(1, params=self._FakeSharedParams())
         self.assertEqual(released, 3)  # slot 7, Climb, and the multipickup's Stomp
         for p in (finder, owner):
@@ -474,6 +478,67 @@ class TestMultiworldFoundPickup(NdbTestCase):
         released = g.mw_release(1, params=self._FakeSharedParams())
         self.assertEqual(released, 1)  # slot 7 only
         self.assertEqual(owner.skills, 0)
+
+    class _FakeShardParams(object):
+        def get_seed_data(self, pid):
+            return [("700", "RB", "17", "Ginso")]
+
+    def test_a_shared_find_whose_tick_came_first_still_fans_out(self):
+        g, finder, owner = self._game(shared=["Skills"])
+        finder.seen_coords = lambda: [300, 2]
+        g.found_pickup(1, Pickup.n("SK", "12"), 300, False, False, "Valley")
+        self.assertTrue(owner.has_pickup(Pickup.n("SK", "12")))
+
+    def test_a_resent_shared_find_grants_once(self):
+        g, finder, owner = self._game(shared=["WorldEvents"])
+        for _ in range(2):
+            g.found_pickup(1, Pickup.n("RB", "17"), 700, False, False, "Ginso")
+        self.assertEqual(owner.bonuses.get("17"), 1)
+
+    def test_complete_after_a_find_grants_once(self):
+        g, finder, owner = self._game(shared=["WorldEvents"])
+        g.found_pickup(1, Pickup.n("RB", "17"), 700, False, False, "Ginso")
+        self.assertEqual(g.mw_release(1, params=self._FakeShardParams()), 0)
+        self.assertEqual(owner.bonuses.get("17"), 1)
+
+    def test_a_multipickup_claims_its_location_once(self):
+        g, finder, owner = self._game(shared=["Skills"])
+        for _ in range(2):
+            g.found_pickup(1, Pickup.n("MU", "EC/1/SK/4"), 500, False, False, "Grotto")
+        self.assertTrue(owner.has_pickup(Pickup.n("SK", "4")))
+        self.assertEqual(finder.shared_released, [500])
+
+    def _failing_once(self):
+        grant = Player.transaction_pickup_batch
+
+        def fail(pkeys, grants):
+            Player.transaction_pickup_batch = grant
+            raise RuntimeError("txn failed")
+        Player.transaction_pickup_batch = staticmethod(fail)
+
+    def test_a_failed_find_grant_gives_its_claim_back(self):
+        g, finder, owner = self._game(shared=["WorldEvents"])
+        self._failing_once()
+        with self.assertRaises(RuntimeError):
+            g.found_pickup(1, Pickup.n("RB", "17"), 700, False, False, "Ginso")
+        self.assertEqual(finder.shared_released, [])
+        g.found_pickup(1, Pickup.n("RB", "17"), 700, False, False, "Ginso")
+        self.assertEqual(owner.bonuses.get("17"), 1)
+
+    def test_a_failed_release_grant_gives_its_claims_back(self):
+        g, finder, owner = self._game(shared=["WorldEvents"])
+        self._failing_once()
+        with self.assertRaises(RuntimeError):
+            g.mw_release(1, params=self._FakeShardParams())
+        self.assertEqual(finder.shared_released, [])
+        g.mw_release(1, params=self._FakeShardParams())
+        self.assertEqual(owner.bonuses.get("17"), 1)
+
+    def test_teleporter_touches_and_the_spawn_never_claim(self):
+        g, finder, owner = self._game(shared=["Teleporters"])
+        for coords in (1, -1, 2, 2):
+            self.assertTrue(g.claim_shared_find(finder, coords))
+        self.assertEqual(finder.shared_released, [])
 
     class _FakeApParams(object):
         """AP-mode: finisher's world holds one of P2's items plus two
@@ -1065,6 +1130,41 @@ class TestBingoUpdateFlow(NdbTestCase):
 
         Player.signal_send_txn = staticmethod(fake_send)
         Player.save_bingo_txn = staticmethod(fake_save)
+
+    def _bool_board(self, bingo_count):
+        from models import BingoGameData, BingoTeam
+        p1 = Player(id="61.1", bingo_prog=[BingoCardProgress(square=i) for i in range(25)])
+        bgd = BingoGameData(id="61")
+        bgd.board = [BingoCard(name="S%d" % i, goal_type="bool", square=i) for i in range(25)]
+        bgd.teams = [BingoTeam(captain=p1.key, teammates=[])]
+        bgd.players = [p1.key]
+        bgd.bingo_count = bingo_count
+        bgd.start_time = datetime(2026, 7, 20, 12, 0, 0)
+        bgd.game = ndb.Key("Game", 61)
+        bgd.get_players = lambda: [p1]
+        bgd.archive_evlog = lambda gid: 0
+        self._stub_puts(p1, bgd)
+        self._stub_txns(p1)
+        report = lambda done: bgd.update({"S%d" % i: {"value": i in done} for i in range(25)}, 1, 61)
+        return bgd, report
+
+    def test_a_line_is_only_won_when_it_is_full(self):
+        bgd, report = self._bool_board(1)
+        # the second down report confirms the loss of 24, in the same update that fills the rest of row 5
+        for done in ({24}, set(), {20, 21, 22, 23}):
+            report(done)
+        self.assertEqual(bgd.teams[0].bingos, [])
+        self.assertIsNone(bgd.teams[0].place)
+
+    def test_a_held_line_is_lost_and_won_again(self):
+        bgd, report = self._bool_board(2)
+        row5 = {20, 21, 22, 23, 24}
+        for done in (row5, row5 - {24}, row5 - {24}):
+            report(done)
+        self.assertEqual(bgd.teams[0].bingos, [])
+        report(row5)
+        self.assertEqual(bgd.teams[0].bingos, ["Row 5"])
+        self.assertEqual([e.loss for e in bgd.event_log if e.event_type == "bingo"], [False, True, False])
 
 
     def test_a_per_world_board_records_without_a_clock(self):

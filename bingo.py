@@ -989,7 +989,9 @@ class BingoGenerator(object):
                     meta_count = 0
                     continue
             elif discovery > 0:
-                early_goals = [goal for goal in goals if "early" in goal.tags]
+                # a goal whose budget is spent can never be accepted, so it must not be drawn here
+                early_goals = [goal for goal in goals if "early" in goal.tags
+                               and all(budgets[tag] > 0 for tag in budgets if tag in goal.tags)]
                 if len(early_goals):
                     goal = rand.choice(early_goals)
                     if isinstance(goal, IntGoal):

@@ -232,22 +232,17 @@ class HashSeedProps(unittest.TestCase):
                              % (hs, [hashseed_cases(HASHSEED_CASES)[i] for i in diff[:3]]))
 
 
-def short_of_early_squares(board, count):
-    return len([c for c in board if c.early]) < count
-
-
 def a_count_a_bare_read_loses(count):
     return count != 2
 
 
 def check_picks(tc, board, count, picks):
-    """count picks on the board, early squares first, distinct outside the mask."""
+    """count distinct picks on the board, early squares first."""
     early = {c.square for c in board if c.early}
     tc.assertEqual(len(picks), count, picks)
     tc.assertTrue(set(picks) <= set(range(25)), picks)
     tc.assertTrue(set(picks) <= early if len(early) >= count else early <= set(picks), (picks, early))
-    if not short_of_early_squares(board, count):
-        tc.assertEqual(len(set(picks)), count, picks)
+    tc.assertEqual(len(set(picks)), count, picks)
 
 
 board_cells = st.lists(st.tuples(st.booleans(), st.sampled_from(["Goal"] * 6 + ["VertSym", "HorizSym"])),
@@ -287,7 +282,6 @@ class DiscoveryProps(unittest.TestCase):
             self.assertEqual((bingo.discovery, len(read)), (count, count))
         self.assertEqual(bingo.discovery_squares(), read)
 
-    @unittest.expectedFailure
     def test_a_board_short_of_early_squares_still_reveals_distinct_ones(self):
         board = [BingoCard(name="G%d" % i, square=i, early=i == 0) for i in range(25)]
         self.assertEqual(len(set(pick_discovery_squares(board, "25", 2))), 2)
@@ -325,6 +319,8 @@ class RerollProps(RerollRoutes, NdbTestCase):
             query["meta"] = 1
         self.assertEqual(self.reroll(**query).status_code, 200)
         if not bingo.boards:
+            self.assertEqual((bingo.lockout, bingo.meta), (case["lockout"], case["meta"] and not case["lockout"]))
+            self.assertFalse(bingo.lockout and any(c.meta for c in bingo.board))
             self.assertEqual((len(bingo.board), bingo.discovery), (25, disc or None))
             check_picks(self, bingo.board, disc, bingo.disc_squares)
             return
@@ -349,14 +345,6 @@ ROW_FILLED_AROUND_A_LOSS = {"roster": [[1]], "lockout": False, "goal": ("bingos"
 
 def full_lines(held, team):
     return {name for name, line in lines_by_index.items() if all(team in held[sq] for sq in line)}
-
-
-def lockout_with_activate_squares(sc):
-    return sc["lockout"] and bool(sc["metas"])
-
-
-def gains_and_loses_lines_at_once(sc, before, after):
-    return sc["goal"][0] == "bingos" and bool(after - before) and bool(before - after)
 
 
 class UpdateProps(NdbTestCase):
@@ -384,9 +372,6 @@ class UpdateProps(NdbTestCase):
             held = [set(c.completed_by) for c in game.bgd.board]
             owners = [c.owner for c in game.bgd.board]
             self.check_squares(game, sc, history, pid, cap, before, held, owners)
-            placed = game.bgd.team(cap).place
-            if placed and gains_and_loses_lines_at_once(sc, full_lines(before, cap), full_lines(held, cap)):
-                places.setdefault(cap, placed)
             self.check_teams(game, sc, cap, held, owners, places, blackouts)
         self.check_feed(game)
         self.check_payload(game)
@@ -409,8 +394,6 @@ class UpdateProps(NdbTestCase):
             if cap in was - now:
                 # a loss lands on its player's second down report after an up one
                 self.assertEqual([sq in r for r in history[pid][-3:]], [True, False, False], sq)
-        if lockout_with_activate_squares(sc):
-            return
         for sq, (method, targets) in game.metas.items():
             for team in [cap] if lockout else game.members:
                 holds = [(owners[t] == team) if lockout else (team in held[t]) for t in targets]
@@ -468,14 +451,6 @@ class UpdateProps(NdbTestCase):
         self.assertEqual({cap: (t["score"], t["bingos"], t.get("place")) for cap, t in res["teams"].items()},
                          {_pid(t.captain): (t.score, t.bingos, t.place) for t in bgd.teams})
 
-    @unittest.expectedFailure
-    def test_lockout_activate_squares_follows_its_own_targets(self):
-        game = UpdateGame({"roster": [[1]], "lockout": True, "goal": ("squares", 20), "metas": {12: ("or", [0])}})
-        game.report(1, {0})
-        self.assertEqual(game.bgd.board[0].owner, 1)
-        self.assertIn(1, game.bgd.board[12].completed_by)
-
-    @unittest.expectedFailure
     def test_a_win_needs_its_lines_held_at_once(self):
         game = UpdateGame({"roster": [[1]], "lockout": False, "goal": ("bingos", 2), "metas": {}})
         col_b, row_1 = {1, 6, 11, 16, 21}, {0, 1, 2, 3, 4}

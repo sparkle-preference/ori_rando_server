@@ -104,6 +104,12 @@ class CanonicalRedirectTestCase(unittest.TestCase):
         self.assertEqual(r.status_code, 301)
         self.assertEqual(r.headers["Location"], "https://bf.orirando.com/version/latest")
 
+    def test_an_escaped_path_redirects_to_the_same_path(self):
+        for path in ("/plando/a%3Fb/", "/plando/a%23b/", "/preset/me/a%2520b", "/patchnotes/%0D", "/plando/%C3%A9t%C3%A9/"):
+            r = self.client.get(path, base_url="http://orirando.com")
+            self.assertEqual(r.status_code, 301, path)
+            self.assertEqual(r.headers["Location"], "https://bf.orirando.com" + path)
+
     def test_unlisted_host_is_untouched(self):
         # bfnc.orirando.com (the dll's plain-http host) must never redirect
         r = self.client.get("/version/latest", base_url="http://bfnc.orirando.com")

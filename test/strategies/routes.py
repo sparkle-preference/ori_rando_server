@@ -19,7 +19,7 @@ import main
 import models
 import util
 from cache import Cache
-from models import BingoGameData, Game, Player, SavedSeedParams, Seed, User, pbc
+from models import Game, Player, SavedSeedParams, Seed, User
 from seedbuilder import seedparams
 from seedbuilder.seedparams import SeedGenParams
 from test.ndb_base import EmulatorTestCase
@@ -253,29 +253,6 @@ def history_page_past_the_players(case, req):
         return False
 
 
-def history_line_at_an_unknown_coordinate(case, req):
-    """A found pickup at a coordinate no location holds."""
-    if req.endpoint != "netcode.netcode_found_pickup":
-        return False
-    try:
-        coords = int(req.args["coords"])
-    except ValueError:
-        return False
-    return util.coord_correction_map.get(coords, coords) not in pbc and abs(coords) != 1
-
-
-def stray_player_in_a_bingo_game(case, req):
-    """A netcode call or seed claim for a player the bingo board never seated."""
-    if (req.endpoint or "").startswith("netcode.") and "player_id" in req.args:
-        gid, pid = req.args.get("game_id"), req.args["player_id"]
-    elif req.endpoint == "generator.load_seed_from_params" and case.requester:
-        gid, pid = _first(req, "game_id"), _first(req, "player_id", "1")
-    else:
-        return False
-    bingo = _game(case, gid, BingoGameData)
-    return bool(bingo) and str(pid).strip() not in [str(p) for p in bingo.player_nums()]
-
-
 def seat_claim_through_another_games_seed(case, req):
     """A seed download whose ?game_id names a game rolled from other params."""
     if req.endpoint != "generator.load_seed_from_params" or not case.requester:
@@ -290,10 +267,9 @@ def an_export_stores_params(case, req):
 
 OPEN_BUGS = (id_past_the_datastore, params_id_not_a_datastore_id, nothing_to_build, guest_on_a_login_route,
              bare_fillgen, newline_in_a_patchnotes_version, newline_in_a_spectate_query, superscript_digit,
-             tracker_on_a_game_without_a_seed, params_that_never_generated, history_page_past_the_players,
-             history_line_at_an_unknown_coordinate, stray_player_in_a_bingo_game)
+             tracker_on_a_game_without_a_seed, params_that_never_generated, history_page_past_the_players)
 # the open bugs that write where a guest or stranger may not; the rest answer 500 and write nothing
-WRITE_BUGS = (stray_player_in_a_bingo_game, seat_claim_through_another_games_seed, an_export_stores_params)
+WRITE_BUGS = (seat_claim_through_another_games_seed, an_export_stores_params)
 
 
 def open_bug(case, req, bugs=OPEN_BUGS):

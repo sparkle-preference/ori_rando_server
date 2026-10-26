@@ -77,6 +77,13 @@ class SeedGenTests(unittest.TestCase):
         bad = [l for l in lines[1:] if not l.startswith("//") and not PICKUP_LINE.match(l)]
         self.assertEqual(bad, [], "malformed placement lines: %s" % bad[:5])
 
+    def test_limitkeys_leaves_a_dungeon_start_its_one_key(self):
+        for start, key in (("Ginso", "0"), ("Forlorn", "2"), ("Horu", "4")):
+            placements, _ = parse_seed(self._generate(["--keymode", "LimitKeys", "--start", start]))
+            spawn = util.decompose_multi_value(placements[2][1]) if placements[2][0] == "MU" else []
+            held = [c for (code, id, zone) in placements.values() if (code, id) == ("EV", key)]
+            self.assertEqual(len(held) + spawn.count(("EV", key)), 1, start)
+
     def test_default_keymode(self):
         self._check_structure(self._generate([]))
 
@@ -3733,3 +3740,17 @@ class MultiworldSharedEventsTests(unittest.TestCase):
         seeds = self._generate(["--warmth-frags", "30"], "seedgentest_mwfrags_")
         per_world = self._rb(seeds, "28")
         self.assertEqual(sum(per_world.values()), 30, per_world)
+
+    def test_limitkeys_places_each_shared_key_once_for_the_game(self):
+        seeds = self._generate(["--keymode", "LimitKeys"], "seedgentest_mwlimitkeys_")
+        check_mw_invariants(self, seeds)
+        for key in ("0", "2", "4"):
+            holders = [p for p, lines in seeds.items()
+                       for (code, id, zone) in parse_seed(lines)[0].values() if (code, id) == ("EV", key)]
+            self.assertEqual(len(holders), 1, "EV%s held by %s" % (key, holders))
+
+    def test_limitkeys_skips_a_shared_key_a_spawn_already_gives(self):
+        seeds = self._generate(["--keymode", "LimitKeys", "--start", "Forlorn"], "seedgentest_mwlimitkeys_forlorn_")
+        held = [p for p, lines in seeds.items()
+                for (code, id, zone) in parse_seed(lines)[0].values() if (code, id) == ("EV", "2")]
+        self.assertEqual(held, [])

@@ -51,6 +51,44 @@
       "category": "Seed Generator",
       "type": "feature",
       "importance": "minor"
+    },
+    {
+      "text": "Archipelago: fixed Grotto starts sometimes putting early items out of reach.",
+      "category": "Logic",
+      "type": "fix",
+      "importance": "minor",
+      "tags": [
+        "Archipelago"
+      ]
+    },
+    {
+      "text": "Fixed game history pages breaking after a pickup at an unrecognized location.",
+      "category": "Website",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Fixed some Discovery boards never finishing generating.",
+      "category": "Bingo",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Fixed bingo boards breaking when someone who never joined the board connected to its game.",
+      "category": "Bingo",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Lockout and Meta Bingo can no longer be on together: turning one on turns the other off.",
+      "category": "Bingo",
+      "importance": "minor"
+    },
+    {
+      "text": "In multiworld plandos, a world finishing now also releases other worlds' items held in its multipickups.",
+      "category": "Plando",
+      "type": "fix",
+      "importance": "minor"
     }
   ],
   "releases": [

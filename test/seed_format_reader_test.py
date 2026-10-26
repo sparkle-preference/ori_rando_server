@@ -296,7 +296,7 @@ class _ModelsMwCase(unittest.TestCase):
         self._ctx.__enter__()
         self._saved = {n: getattr(Player, n) for n in
                        ("mark_slot_txn", "mark_slots_txn", "signal_send_txn",
-                        "append_hl_chunked_txn", "transaction_pickup_batch")}
+                        "append_hl_chunked_txn", "transaction_pickup_batch", "claim_shared_released_txn")}
         self._mark_history = Game.mark_history_txn
         Game.mark_history_txn = staticmethod(lambda key: None)
 
@@ -324,6 +324,8 @@ class _ModelsMwCase(unittest.TestCase):
         Player.append_hl_chunked_txn = staticmethod(lambda pkey, hl: g.hist.append(hl) or True)
         Player.transaction_pickup_batch = staticmethod(
             lambda pkeys, grants: g.grants.append(grants))
+        Player.claim_shared_released_txn = staticmethod(
+            lambda pkey, coords: by_key[pkey].claim_shared_released(coords))
         return g, players[1], players[2]
 
 

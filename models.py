@@ -13,7 +13,7 @@ from flask import g
 
 from seedbuilder.seedparams import Placement, Stuff, BoxLine, SeedGenParams, bingo_worlds
 from enums import MultiplayerGameType, ShareType, Variation
-from util import utcnow, picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc
+from util import utcnow, picks_by_coord, get_bit, get_taste, enums_from_strlist, ord_suffix, debug, bfields_to_coords, bfield_checksum, unpack, netperf, is_mw_manifest_loc, decompose_multi_value
 import re
 import threading
 import zlib
@@ -195,7 +195,7 @@ class HistoryLine(ndb.Model):
                 name = "via manual activation"
             else:
                 log.warning("Unknown coords: %s", self.coords)
-                name += "unknown coordset %s (%s, %s)" % (self.coords, unpack(self.coords))
+                name += "unknown coordset %s (%s, %s)" % ((self.coords,) + unpack(self.coords))
             return "found %s %s. (%s)" % (shown, name, t)
         else:
             return "lost %s! (%s)" % (shown, t)
@@ -601,6 +601,15 @@ class Player(ndb.Model):
     def claim_shared_released_txn(pkey, coords):
         p = pkey.get()
         return p.claim_shared_released(coords) if p else []
+
+    @staticmethod
+    @ndb.transactional(retries=5)
+    def unclaim_shared_released_txn(pkey, coords):
+        """Give back claims whose grant failed: a retry dupes a stacker, never loses an item."""
+        p = pkey.get()
+        if p and set(coords) & set(p.shared_released or []):
+            p.shared_released = [c for c in p.shared_released if c not in coords]
+            p.put()
 
     @staticmethod
     @ndb.transactional(retries=5)
@@ -1241,7 +1250,7 @@ def pick_discovery_squares(board, seed, square_count=2):
         if len(noncounts) >= square_count:
             squares = rand.sample(noncounts, square_count)
         else:
-            squares = noncounts + rand.sample(range(25), square_count - len(noncounts))
+            squares = noncounts + rand.sample([s for s in range(25) if s not in noncounts], square_count - len(noncounts))
         if all("Sym" in board[card].name for card in squares): # girl noooooo
             i += 1
             continue
@@ -1393,8 +1402,8 @@ class BingoGameData(ndb.Model):
         # type: (int, bool, bool) -> Optional[Player]
         # membership is settled at seating (the one create=True path); adopting a
         # stray -- an AP shadow resolves here like any other -- wedges board renders
-        if self.boards and not create and int(pid) not in self.player_nums():
-            log.warning("Bingo game %s: world %s is not on its boards", self.key.id(), pid)
+        if not create and int(pid) not in self.player_nums():
+            log.warning("Bingo game %s: player %s is not on its board", self.key.id(), pid)
             return None
         gid = self.game.id()
         full_pid = "%s.%s" % (gid, pid)
@@ -1586,7 +1595,6 @@ class BingoGameData(ndb.Model):
             if not self.boards:
                 self.event_log.append(BingoEvent(event_type="miscThe clock starts with the first report!", timestamp=now))
         change_squares = set()
-        loss_squares = set()
         win_players = False
         round_now = round_time(now - self.start_time) if not meta_init else "00:00"
         place = ""
@@ -1606,7 +1614,6 @@ class BingoGameData(ndb.Model):
             self.event_log.append(ev)
             change_squares.add(ev.square)
             if ev.loss:
-                loss_squares.add(ev.square)
                 if cpid in card.completed_by:
                     card.completed_by.remove(cpid)
             elif cpid not in card.completed_by:
@@ -1677,27 +1684,30 @@ class BingoGameData(ndb.Model):
                 place = ord_suffix(team.place)
                 win_players = True
         elif change_squares:
+            changed = []
             for bingo, line in lines_by_index.items():
                 if set(line) & change_squares:
-                    squares = len([square for square in line if cpid in self.board_for(cpid)[square].completed_by])
-                    lost_squares = len(set(line) & loss_squares)
-                    if lost_squares + squares == 5:
-                        loss = lost_squares > 0
-                        ev = BingoEvent(event_type = "bingo", loss = loss, bingo = bingo, player = team.captain, timestamp = now)
-                        if loss and bingo in team.bingos:
-                            team.bingos.remove(bingo)
-                        elif bingo not in team.bingos:
-                            team.bingos.append(bingo)
-                            if(len(team.bingos) > self.current_highest):
-                                ev.first = True
-                                ev.square = len(team.bingos) # i hate this
-                                self.current_highest += 1
-                        self.event_log.append(ev)
-                        if len(team.bingos) >= self.bingo_count and not team.place:
-                            self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
-                            team.place = len([t.place for t in self.teams if t.place]) + 1
-                            place = ord_suffix(team.place)
-                            win_players = True
+                    # a line is gained or lost against what the team holds, never inferred from this update alone
+                    full = all(cpid in self.board_for(cpid)[square].completed_by for square in line)
+                    if full != (bingo in team.bingos):
+                        changed.append((bingo, not full))
+            # losses land first, so no count this update makes still holds a line it takes away
+            for bingo, loss in sorted(changed, key=lambda c: not c[1]):
+                ev = BingoEvent(event_type = "bingo", loss = loss, bingo = bingo, player = team.captain, timestamp = now)
+                if loss:
+                    team.bingos.remove(bingo)
+                else:
+                    team.bingos.append(bingo)
+                    if(len(team.bingos) > self.current_highest):
+                        ev.first = True
+                        ev.square = len(team.bingos) # i hate this
+                        self.current_highest += 1
+                self.event_log.append(ev)
+            if changed and len(team.bingos) >= self.bingo_count and not team.place:
+                self.event_log.append(BingoEvent(event_type = "win", loss = False, player = team.captain, timestamp = now))
+                team.place = len([t.place for t in self.teams if t.place]) + 1
+                place = ord_suffix(team.place)
+                win_players = True
         if team.score == 25 and not team.blackout_place:
             team.blackout_place = len([1 for t in self.teams if t.blackout_place]) + 1
             win_players = True
@@ -2265,21 +2275,29 @@ class Game(ndb.Model):
             return [p for child in pickup.children for p in self.mw_shareable(child)]
         return [pickup] if pickup.is_shared(self.shared) else []
 
+    @staticmethod
+    def claim_shared_find(finder, coords):
+        """Claim a location's shared grant in the finder's world; True if this call won it.
+        Teleporter touches (+-1) and the spawn (2) share coords across pickups, so they never claim."""
+        if abs(coords) <= 2:
+            return True
+        return bool(Player.claim_shared_released_txn(finder.key, [coords]))
+
     def mw_release_shared(self, finisher_pid, params):
         """The shared half of the release, granted to everyone. Shared items are plain local
         lines with no owner or slot, so the slot pass can't see them."""
         if not self.shared:
             return 0
         finisher = self.player(finisher_pid)
-        seen = set(finisher.seen_coords())
         by_coords = defaultdict(list)
+        # the claims, not the seen bits, say what was already handed out
         for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
             try:
                 coords = int(loc)
             except ValueError:
                 continue
-            if coords in seen:
-                continue
+            if abs(coords) <= 2:
+                continue  # every world's spawn already carries its shared items
             picks = self.mw_shareable(Pickup.n(code, id))
             if picks:
                 by_coords[coords] += [(p, zone) for p in picks]
@@ -2288,7 +2306,11 @@ class Game(ndb.Model):
         if not grants:
             return 0
         players = [p for p in self.get_players() if p]
-        Player.transaction_pickup_batch([p.key for p in players], grants)
+        try:
+            Player.transaction_pickup_batch([p.key for p in players], grants)
+        except Exception:
+            Player.unclaim_shared_released_txn(finisher.key, fresh)
+            raise
         Cache.clear_items(self.key.id())
         for p in players:
             Cache.clear_seen_checksum(p.idpts())
@@ -2308,19 +2330,23 @@ class Game(ndb.Model):
         # AP shadows' slots (pid > K) are the bridge's outbox; a release never checks them
         ap_worlds = int(params.players) if getattr(params, "ap_mode", False) else None
         by_owner = defaultdict(list)
-        for (loc, code, id, zone) in params.get_seed_data(finisher_pid):
-            if code != "MW" or is_mw_manifest_loc(loc):
+        for (loc, line_code, line_id, zone) in params.get_seed_data(finisher_pid):
+            if is_mw_manifest_loc(loc):
                 continue  # manifests are our own slots, not the world's contents
-            try:
-                owner, slot, _ = id.split(",", 2)
-                owner, slot = int(owner), int(slot)
-            except ValueError:
-                log.warning("unparseable MW placement %s in game %s", id, self.key.id())
-                continue
-            if ap_worlds and owner > ap_worlds:
-                continue
-            if owner != finisher_pid:
-                by_owner[owner].append(slot)
+            # a multipickup's MW children go out like plain MW lines
+            for code, id in decompose_multi_value(line_id) if line_code == "MU" else [(line_code, line_id)]:
+                if code != "MW":
+                    continue
+                try:
+                    owner, slot, _ = id.split(",", 2)
+                    owner, slot = int(owner), int(slot)
+                except ValueError:
+                    log.warning("unparseable MW placement %s in game %s", id, self.key.id())
+                    continue
+                if ap_worlds and owner > ap_worlds:
+                    continue
+                if owner != finisher_pid:
+                    by_owner[owner].append(slot)
         netperf("mw_release_prep", t0, gid=self.key.id(), pid=finisher_pid, owners=len(by_owner))
         t_shared = monotonic()
         shared = self.mw_release_shared(finisher_pid, params)
@@ -2418,7 +2444,7 @@ class Game(ndb.Model):
             game.players.append(pkey)
             game.put()
 
-    def found_pickup(self, pid, pickup, coords, remove, override, zone="", finder_bflds=None):
+    def found_pickup(self, pid, pickup, coords, remove, override, zone="", finder_bflds=None, claimed=None):
         pid = int(pid)
         retcode = 200
         share = pickup.is_shared(self.shared)
@@ -2446,8 +2472,9 @@ class Game(ndb.Model):
             # only shared singletons fan out; TW warps are world-local, EV5 is each world's finale
             if pickup.code in ["MW", "TW"] or (pickup.code == "EV" and int(pickup.id) == 5):
                 share = False
-            if pickup.code == "MW":
-                # no seen dedup: the tick can deliver the seen bit before this POST, and flips are idempotent
+            if pickup.code in ["MW", "MU"] or share:
+                # no seen dedup: the tick can deliver the seen bit before this POST; slot flips are
+                # idempotent, shared grants claim their location, a multipickup's children dedup alone
                 finder_seen = []
         if coords in finder_seen:
             if share:
@@ -2463,8 +2490,10 @@ class Game(ndb.Model):
                 return 200
 
         if pickup.code == "MU":
+            if self.mode == MultiplayerGameType.MULTIWORLD and claimed is None and self.mw_shareable(pickup):
+                claimed = self.claim_shared_find(finder, coords)
             for child in pickup.children:
-                retcode = max(self.found_pickup(pid, child, coords, remove, False, zone, finder_bflds), retcode)
+                retcode = max(self.found_pickup(pid, child, coords, remove, False, zone, finder_bflds, claimed), retcode)
             return retcode
         if self.mode == MultiplayerGameType.SHARED:
             if self.bingo_data:
@@ -2524,7 +2553,16 @@ class Game(ndb.Model):
             elif share:
                 # shared singleton: grant every world. The finder's client
                 # already granted itself; its server entity converges here too.
-                Player.transaction_pickup_batch([p.key for p in players], [(pickup, remove, coords, pid)])
+                if claimed is None:
+                    claimed = self.claim_shared_find(finder, coords)
+                if not claimed:
+                    return 200
+                try:
+                    Player.transaction_pickup_batch([p.key for p in players], [(pickup, remove, coords, pid)])
+                except Exception:
+                    if abs(coords) > 2:
+                        Player.unclaim_shared_released_txn(finder.key, [coords])
+                    raise
                 Cache.clear_items(self.key.id())
                 for player in players:
                     Cache.clear_seen_checksum(player.idpts())

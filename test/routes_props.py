@@ -160,13 +160,11 @@ class OpenBugRepros(R.RouteCase):
         self.build_fixture()
         self.assertAllBelow500("/game/%s?p=1" % R.SOLO, "/game/%s/history/?p=-2" % R.SOLO)
 
-    @unittest.expectedFailure
     def test_a_history_line_at_an_unknown_coordinate_still_prints(self):
         self.build_fixture()
         self.get("/netcode/game/%s/player/1/found/12345/SK/0" % R.SOLO)
         self.assertAllBelow500("/game/%s/history/" % R.SOLO, "/game/%s/players/" % R.SOLO)
 
-    @unittest.expectedFailure
     def test_a_player_the_bingo_board_never_seated_does_not_break_it(self):
         self.build_fixture()
         self.get("/netcode/game/%s/player/4/found/-280256/SK/0" % R.BINGO)

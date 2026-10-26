@@ -1,5 +1,5 @@
 """Property tests for Archipelago support: yaml, conversion, the bridge's grants and hint market, and logic parity."""
-from test.strategies.base import examples, deep_only, DEEP
+from test.strategies.base import examples, deep_only
 
 import unittest
 from collections import Counter
@@ -43,10 +43,6 @@ def outrun_by_a_hint_from_elsewhere(say):
 
 def bought_again_after_a_pending_claim_was_overwritten(say):
     return say["clobbered"]
-
-
-def starts_in_grotto(config):
-    return config.zone == "Grotto"
 
 
 def run_machine(machine, n, steps=30):
@@ -816,14 +812,12 @@ class LogicParity(unittest.TestCase):
     @settings(max_examples=examples(100))
     @given(reach_configs(), st.data())
     def test_the_room_never_reaches_what_the_tracker_cannot(self, config, data):
-        assume(not starts_in_grotto(config))
         logic = ApLogic(config.cfg)
         for _ in range(3):
             inventory = data.draw(inventories(config))
             ap_only = logic.reach(ap_have(inventory)) - server_reach(config, inventory)
             self.assertEqual(ap_only, set(), "%r holding %s" % (config, dict(inventory)))
 
-    @unittest.expectedFailure
     def test_a_grotto_run_starts_on_the_teleporter(self):
         config = ReachConfig("Grotto", ["casual-core"], [], "Clues", DOORS)
         inventory = Counter({("SK", "5"): 1})

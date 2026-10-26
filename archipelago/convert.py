@@ -66,7 +66,7 @@ EX_DENOMS = (50, 100, 200)
 # seed spawn zone -> areas.ori region the run actually starts in
 SPAWN_REGIONS = {
     "Glades": "SunkenGladesRunaway",
-    "Grotto": "MoonGrottoAboveTeleporter",
+    "Grotto": "MoonGrotto",
     "Swamp": "SwampTeleporter",
     "Valley": "ValleyTeleporter",
     "Sorrow": "SorrowTeleporter",

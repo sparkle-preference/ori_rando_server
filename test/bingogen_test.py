@@ -499,3 +499,24 @@ class TestDefeatBudget(unittest.TestCase):
             cards = [card for card in BingoGenerator.get_cards(random.Random(seed)) if card.name == "Defeat"]
             keys = [sg["name"] for card in cards for sg in card.subgoals]
             self.assertEqual(len(keys), len(set(keys)))
+
+
+class _CappedRandom(random.Random):
+    def __init__(self, seed):
+        self.calls = 0
+        super().__init__(seed)
+
+    def random(self):
+        self.calls += 1
+        if self.calls > 20000:
+            raise AssertionError("get_cards is spinning")
+        return super().random()
+
+
+class TestDiscoveryFinishes(unittest.TestCase):
+    def test_a_spent_budget_never_stalls_the_early_draw(self):
+        for difficulty, spawn, discovery in (("easy", "Blackroot", 9), ("hard", "Glades", 4), ("hard", "Sorrow", 25)):
+            for seed in range(5):
+                cards = BingoGenerator.get_cards(_CappedRandom(seed), difficulty=difficulty, spawn=spawn,
+                                                 discovery=discovery)
+                self.assertEqual(len(cards), 25)

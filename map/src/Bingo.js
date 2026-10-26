@@ -1280,7 +1280,7 @@ export default class Bingo extends React.Component {
             </Col>
             <Col xs="6">
                 <ButtonGroup>
-                    <Button active={meta} outline={!meta} onClick={() => this.setState({meta: true})}>Enabled</Button>
+                    <Button active={meta} outline={!meta} onClick={() => this.setState({meta: true, lockout: false})}>Enabled</Button>
                     <Button active={!meta} outline={meta} onClick={() => this.setState({meta: false})}>Disabled</Button>
                 </ButtonGroup>
             </Col>
@@ -1372,7 +1372,7 @@ export default class Bingo extends React.Component {
                             </Col>
                             <Col xs="6">
                                 <ButtonGroup>
-                                    <Button active={lockout} outline={!lockout} onClick={() => this.setState({lockout: true})}>Enabled</Button>
+                                    <Button active={lockout} outline={!lockout} onClick={() => this.setState({lockout: true, meta: false})}>Enabled</Button>
                                     <Button active={!lockout} outline={lockout} onClick={() => this.setState({lockout: false})}>Disabled</Button>
                                 </ButtonGroup>
                             </Col>
