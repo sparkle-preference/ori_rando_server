@@ -4,9 +4,10 @@
 """
 from urllib.parse import unquote_to_bytes
 
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 
 import netcode
+import practice
 import ws
 from cache import Cache
 from web.extensions import sock
@@ -55,6 +56,19 @@ def netcode_connect(game_id, player_id):
 @bp.route('/netcode/areas')
 def netcode_get_areas_dot_ori():
     return text_resp(Cache.get_areas())
+
+
+@bp.route('/netcode/practice')
+def netcode_practice_defaults():
+    return text_resp("\n".join(practice.defaults()))
+
+
+@bp.route('/netcode/practice/<file>')
+def netcode_practice_default(file):
+    path = practice.default_path(file)
+    if not path:
+        return text_resp("no such segment", 404)
+    return send_file(path, mimetype="application/octet-stream")
 
 # Archipelago link management; every route 404s unless ARCHIPELAGO is set
 

@@ -105,6 +105,12 @@
       "sub": [
         "Share Save Spots"
       ]
+    },
+    {
+      "text": "Practice Mode now comes with starter segments, added to your practice folder when the game starts. Delete or rename one and it won't come back.",
+      "category": "Game",
+      "type": "feature",
+      "importance": "minor"
     }
   ],
   "releases": [

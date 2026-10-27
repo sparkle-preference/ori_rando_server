@@ -28,6 +28,9 @@ COPY ./archipelago/oride_apworld/ ./archipelago/oride_apworld/
 # the runtime copy the patch-note feeds read; missing, only those two routes break
 COPY ./map/src/patchnotes.json ./map/src/patchnotes.json
 
+# the default practice segments; missing, the list is just empty
+COPY ./practice_defaults/ ./practice_defaults/
+
 # main imports web.responses at module scope, so a missing COPY here kills the
 # container rather than one route.
 COPY ./web/*.py ./web/

@@ -80,6 +80,8 @@ EXPECTED = [
     "GET /netcode/game/<int:game_id>/player/<int:player_id>/found/<coords>/<kind>/<path:id>/",
     "GET /netcode/game/<int:game_id>/player/<int:player_id>/goals",
     "GET /netcode/game/<int:game_id>/player/<int:player_id>/ws",
+    "GET /netcode/practice",
+    "GET /netcode/practice/<file>",
     "GET /oidc_callback",
     "GET /patchnotes",
     "GET /patchnotes.json",
