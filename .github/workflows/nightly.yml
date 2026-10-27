@@ -1,0 +1,12 @@
+name: Nightly
+
+on:
+  # a schedule fires from the default branch only, on that branch's code
+  schedule:
+    - cron: "37 10 * * *"
+
+jobs:
+  properties:
+    uses: ./.github/workflows/properties.yml
+    with:
+      profile: deep

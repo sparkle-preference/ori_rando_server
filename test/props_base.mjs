@@ -8,3 +8,6 @@ if(SCALE === undefined)
 
 export const fc = fcmod.default || fcmod
 export const runs = (n) => Math.max(1, Math.round(n * SCALE))
+// ci draws the same inputs every run, as the python suite's ci profile does
+if(PROFILE === "ci")
+    fc.configureGlobal({seed: 20261026})

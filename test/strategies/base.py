@@ -10,7 +10,8 @@ DEEP = PROFILE == "deep"
 
 _common = dict(deadline=None, suppress_health_check=[HealthCheck.too_slow])
 settings.register_profile("dev", **_common)
-settings.register_profile("ci", database=None, print_blob=True, **_common)
+# ci draws the same inputs every run, so a push goes red only for its own code; deep explores
+settings.register_profile("ci", database=None, print_blob=True, derandomize=True, **_common)
 settings.register_profile("deep", database=None, print_blob=True, **_common)
 settings.load_profile(PROFILE)
 
