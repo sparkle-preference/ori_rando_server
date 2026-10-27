@@ -35,19 +35,19 @@
       "importance": "minor"
     },
     {
-      "text": "Ghosts: when another player's ghost can't connect, even through the relay, the game now says so (it's usually a firewall or VPN).",
+      "text": "Ghosts: when another player's ghost can't connect even through the relay (usually due to a firewall or VPN), the game now reports failure.",
       "category": "Multiplayer",
       "type": "feature",
       "importance": "minor"
     },
     {
-      "text": "Practice Mode: playing a .bfrp file no longer offers Edit Practice Segment in the pause menu; segment folders still do.",
+      "text": "Practice Mode: playing a .bfrp file no longer offers Edit Practice Segment in the pause menu.",
       "category": "Game",
       "type": "fix",
       "importance": "minor"
     },
     {
-      "text": "Legacy Kuro Behavior now also keeps Kuro's hide-and-seek after the Forlorn escape, so the vanilla seed has it too.",
+      "text": "Legacy Kuro Behavior now also keeps Kuro's hide-and-seek after the Forlorn escape.",
       "category": "Seed Generator",
       "type": "feature",
       "importance": "minor"
@@ -68,20 +68,27 @@
       "importance": "minor"
     },
     {
-      "text": "Fixed some Discovery boards never finishing generating.",
+      "text": "Fixed several rare bingo bugs.",
       "category": "Bingo",
       "type": "fix",
       "importance": "minor"
     },
     {
-      "text": "Fixed bingo boards breaking when someone who never joined the board connected to its game.",
-      "category": "Bingo",
+      "text": "Multiworld: fixed shared items occasionally never arriving, and shards or warmth fragments occasionally arriving twice.",
+      "category": "Multiplayer",
       "type": "fix",
       "importance": "minor"
     },
     {
-      "text": "Lockout and Meta Bingo can no longer be on together: turning one on turns the other off.",
-      "category": "Bingo",
+      "text": "Multiworld seeds sharing World Events with LimitKeys on now generate.",
+      "category": "Seed Generator",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "LimitKeys seeds with a Ginso, Forlorn or Horu start no longer place a second copy of that dungeon's key.",
+      "category": "Seed Generator",
+      "type": "fix",
       "importance": "minor"
     },
     {
