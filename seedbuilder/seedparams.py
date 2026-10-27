@@ -18,7 +18,10 @@ from seedbuilder.generator import SeedGenerator, MultiworldSlotOverflow
 _PARAMS_CACHE = TTLCache(maxsize=8, ttl=120)
 _PARAMS_LOCK = Lock()
 
-JSON_SHARE = lambda x: x.value if x != ShareType.EVENT else "World Events"
+# the site's button labels, where they differ from the flag spelling
+SHARE_LABELS = {ShareType.EVENT: "World Events"}
+SHARE_FROM_LABEL = {label: st.value for st, label in SHARE_LABELS.items()}
+JSON_SHARE = lambda x: SHARE_LABELS.get(x, x.value)
 
 def normalize_pool(pool):
     return {normalize_pickup(k): v for k, v in (pool or {}).items()}
@@ -223,7 +226,7 @@ class MultiplayerOptions(ndb.Model):
             if opts.cloned:
                 opts.teams = {1: list(range(1, json.get("players", 1) + 1))}
                 opts.dedup = bool(json.get("dedupShared", False))
-            opts.shared = enums_from_strlist( ShareType, [a.replace(" ", "") for a in json.get("syncShared", json.get("shared", []))]) #shit fuck ass jank shit
+            opts.shared = enums_from_strlist( ShareType, [SHARE_FROM_LABEL.get(a, a.replace(" ", "")) for a in json.get("syncShared", json.get("shared", []))]) #shit fuck ass jank shit
         return opts
 
     def get_team_str(self):

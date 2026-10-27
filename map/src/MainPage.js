@@ -974,10 +974,10 @@ export default class MainPage extends React.Component {
                 <Button data-hist={`${kind}-${stype.replace(" ", "")}`} block outline={!current.includes(stype)} onClick={toggle(stype)}>Share {stype}</Button>
             </Col>
         ))
-        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc"], shared, this.onSType, "shared")
-        // multiworld selections are stored separately and default to none; no Misc,
-        // since trees, relics and keysanity keys stay per-world
-        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events"], mwShared, this.onMWSType, "mwShared")
+        let multiplayerButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Misc", "Saves"], shared, this.onSType, "shared")
+        // multiworld selections are stored separately; no Misc, since trees,
+        // relics and keysanity keys stay per-world
+        let mwShareButtons = shareButtons(["Skills", "Teleporters", "Upgrades", "World Events", "Saves"], mwShared, this.onMWSType, "mwShared")
         // ap export categories are server-side names; 'stones' covers
         // Mapstones, keysanity zone keys, and generic Keystones (tiered doors)
         let apExportButtons = [["skills", "Skills"], ["teleporters", "Teleporters"], ["events", "World Events"], ["cells", "Cells"], ["stones", "Stones"], ["upgrades", "Upgrades"]].map(([cat, label]) => (
@@ -3070,7 +3070,7 @@ export default class MainPage extends React.Component {
                         spawnHCs: 3, spawnECs: 1, spawnSKs: 0, enemyOpts: {}, pathMode: "standard", pathDiff: "Normal", helpParams: getHelpContent("none", null), 
                         goalModes: ["ForceTrees"], selectedPool: "Standard", seed: "", fillAlg: "Balanced", quickstartOpen: quickstartOpen,
                         betaWelcomeOpen: beta_welcome_pending(),
-                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc"], mwShared: [], helpcat: "", helpopt: "",
+                        shared: ["Skills", "Teleporters", "World Events", "Upgrades", "Misc", "Saves"], mwShared: ["Saves"], helpcat: "", helpopt: "",
                         apMode: false, apExport: [...apDefaultExport], apDeathLink: false, apDeathsPerLink: 1, inputApMode: false, playerNames: [],
                         worldSettings: [],
                         apHost: AP_DEFAULT_HOST, apPort: "", apPassword: "", apConnectPending: false, apStatus: null, apNoLink: false, apHidden: false, apPollFailed: false,

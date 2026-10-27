@@ -120,7 +120,7 @@ class CLISeedParams(object):
         using the same keys a saved preset does, e.g. '[{}, {"keyMode": "Shards", "paths": ["casual-core"]}]'. Omitted keys keep the seed's value.""", type=str, default=None)
         parser.add_argument("--tracking", help="Place a sync ID in a seed for tracking purposes", action="store_true")
         parser.add_argument("--sync-id", help="Team identifier number for paired randomizer", type=int)
-        parser.add_argument("--shared-items", help="What will be shared by sync, comma-separated: skills,worldevents,misc,teleporters,upgrades. Defaults to skills,worldevents (multiworld: nothing shared unless set)", default=None)
+        parser.add_argument("--shared-items", help="What will be shared by sync, comma-separated: skills,worldevents,misc,teleporters,upgrades,saves. Defaults to skills,worldevents,saves (multiworld: saves)", default=None)
         parser.add_argument("--share-mode", help="How the server will handle shared pickups, one of: shared,swap,split,none", default="shared")
         parser.add_argument("--cloned", help="Make a split cloned seed instead of seperate seeds", action="store_true")
         parser.add_argument("--teams", help="Cloned seeds only: define teams. Format: 1|2,3,4|5,6. Each player must appear once", type=str)
@@ -358,8 +358,8 @@ class CLISeedParams(object):
             self.sync.mode = MultiplayerGameType.mk(args.share_mode) or MultiplayerGameType.SIMUSOLO
             raw_shared = args.shared_items
             if raw_shared is None:
-                # multiworld shares nothing by default
-                raw_shared = "" if self.sync.mode == MultiplayerGameType.MULTIWORLD else "skills,worldevents"
+                # multiworld shares no items by default
+                raw_shared = "saves" if self.sync.mode == MultiplayerGameType.MULTIWORLD else "skills,worldevents,saves"
             self.sync.shared = enums_from_strlist(ShareType, raw_shared.split(","))
             self.sync.cloned = args.cloned or False
             if self.sync.cloned:

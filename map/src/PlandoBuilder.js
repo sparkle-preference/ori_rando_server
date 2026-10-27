@@ -134,7 +134,7 @@ SEED_FLAGS.forEach(flag => FLAG_CASEFIX[flag.toLowerCase()] = flag);
 
 const modes_by_key = {"Shared": "Shared", "None": "Solo", "Multiworld": "Multiworld", "SplitShards": "Shards Race"}
 const COOP_MODES = Object.keys(modes_by_key).map((k) => { return {label: modes_by_key[k], value: k} });
-const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills"]
+const SHARE_TYPES = ["WorldEvents", "Misc", "Upgrades", "Teleporters", "Skills", "Saves"]
 // the modes whose share= the server reads
 const SHARING_MODES = ["Shared", "Multiworld"]
 // entrance shuffle doors, mirroring doors_inner/doors_outer (+R1OuterDoor) in seedbuilder/generator.py
@@ -548,7 +548,7 @@ class PlandoBuiler extends React.Component {
 
     this.state = {seed_in: "", reachable: {...DEFAULT_REACHABLE}, new_areas: {...DEFAULT_REACHABLE}, placements: {1: {...DEFAULT_DATA}}, player: 1, enemy_rolls: {},
                   fill_opts: {HC: 13, EC: 15, AC: 34, KS: 40, MS: 9, EX: 300, ex_pool: 10000, dynamic: false, dumb: false}, fill_pool: null, pool_menu: POOL_PRESETS, viewport: {center: [0, 0], zoom: 5}, searchStr: "", clueOrder: CLUE_ORDERS[0],
-                  flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters"]), coop_mode: {label: "Solo", value: "None"},
+                  flags: ['hide_unreachable'], seedFlags: [], hidden: hidden, share_types: select_wrap(["Skills", "WorldEvents", "Teleporters", "Saves"]), coop_mode: {label: "Solo", value: "None"},
                   pickups: ["EX", "Ma", "HC", "SK", "Pl", "KS", "MS", "EC", "AC", "EV", "CS"], display_fill: false, display_import: false, display_logic: false, display_coop: false, display_meta: false,
                   entrances: {1: {}}, display_entrances: false, entrance_from: {value: "", label: ""}, entrance_to: {value: "", label: ""},
                   boxes: {1: []}, display_boxes: false, boxes_mounted: false, box_fold: false, box_edit: false, box_last: null, drawer_tab: "boxes", enemy_selected: null,

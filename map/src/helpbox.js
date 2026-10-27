@@ -842,6 +842,12 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                         "All upgrades besides Mega Health and Mega Energy are considered permenant upgrades, including everything unlocked by the 'More Bonus Pickups' variation.",
                     ]
                     break;
+                case "Saves":
+                    title = "Share Saves"
+                    lines = [
+                        "With Share Saves enabled, you can save at an ally's soul link by holding the Soul Link button next to it.",
+                    ]
+                    break;
                 case "Dedup":
                     title = "Dedup Shared"
                     lines= [

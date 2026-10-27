@@ -96,6 +96,15 @@
       "category": "Plando",
       "type": "fix",
       "importance": "minor"
+    },
+    {
+      "text": "New shared category, on by default in Co-op and Multiworld: you can save at an ally's soul link by holding the Soul Link button next to it.",
+      "category": "Multiplayer",
+      "type": "feature",
+      "importance": "major",
+      "sub": [
+        "Share Save Spots"
+      ]
     }
   ],
   "releases": [

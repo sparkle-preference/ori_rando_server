@@ -35,6 +35,7 @@ class ShareType(StrEnum):
     EVENT = "WorldEvents"
     TELEPORTER = "Teleporters"
     MISC = "Misc"
+    SAVES = "Saves"  # no pickup has it: lets the client save at allies' soul links
 
 class Variation(StrEnum):
     ZERO_EXP = "0XP"
