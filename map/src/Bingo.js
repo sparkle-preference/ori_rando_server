@@ -417,7 +417,7 @@ export default class Bingo extends React.Component {
                       events: [], startTime: (new Date()), countdownActive: false, isOwner: false, targetCount: targetCount, userBoard: userBoard,
                       teamsDisabled: perWorldSeed || (teamMax === -1), fromGen: fromGen, teamMax: teamMax, ticksSinceLastSquare: 0, userBoardParams: userBoardParams,
                       ticking: false, netFails: 0, netRetryAt: 0, rerollingBoard: false, seedsTaken: [],
-                      marks: {}, pendingMarks: {}
+                      marks: {}, pendingMarks: {}, noMarks: []
                     };
         if(gameId > 0) {
             if(fromGen) {
@@ -573,6 +573,10 @@ export default class Bingo extends React.Component {
         return pending ? pending.bits : (this.state.marks[pid] || 0)
     }
 
+    // a seated player whose seat isn't claimed by another account
+    canMark = (pid) => !this.state.noMarks.includes(pid) &&
+        Object.values(this.state.teams || {}).some(t => t.cap.pid === pid || t.teammates.some(tm => tm.pid === pid))
+
     toggleMark = (square) => {
         let pid = this.state.activePlayer
         if(!(pid > 0))
@@ -598,6 +602,10 @@ export default class Bingo extends React.Component {
                 if(this.markFails < MARK_RETRIES)
                     return setTimeout(this.sendMarks, MARK_RETRY)
                 NotificationManager.warning("Failed to send marked squares to the server.", "Marks", 5000)
+            } else if(status === 403 || status === 404) {
+                // claimed or left since the page loaded: clicks on that board stop doing anything
+                let p = parseInt(pid, 10)
+                this.setState(prev => ({noMarks: prev.noMarks.concat([p])}))
             } else if(status !== 200)
                 NotificationManager.info(responseText, "Marks", 5000)
             this.markFails = 0
@@ -825,7 +833,7 @@ export default class Bingo extends React.Component {
                               targetCount: (mine && mine.bingo_count) || res.bingo_count, fromGen: false, teamMax: res.teamMax || -1,
                               discSquares: (mine && mine.discovery) || res.discovery || [],
                               lockout: res.lockout || false, startTime: res.start_time_posix, isOwner: res.is_owner, countdownActive: res.countdown, teamsDisabled: !res.teams_allowed,
-                              apWorlds: res.ap_worlds || 0, rerollingBoard: false, marks: res.marks || {}, pendingMarks: {},
+                              apWorlds: res.ap_worlds || 0, rerollingBoard: false, marks: res.marks || {}, pendingMarks: {}, noMarks: res.no_marks || [],
                               // the settings the modal reopens on, so a reroll only changes what was asked for
                               difficulty: res.difficulty || this.state.difficulty, seed: res.board_seed || this.state.seed,
                               meta: (mine ? mine.meta : res.meta) || false,
@@ -923,7 +931,7 @@ export default class Bingo extends React.Component {
         let s = getComputedStyle(document.body);
         let inputStyle = {'borderColor': s.getPropertyValue('--dark'), 'backgroundColor': s.getPropertyValue("background-color"), 'color': s.getPropertyValue("color")}
         // a player marks from their own board page; spectators and userboards just show them
-        let markProps = {marks: this.markBits(activePlayer), onMark: (haveGame && !viewOnly && !userBoard) ? this.toggleMark : null}
+        let markProps = {marks: this.markBits(activePlayer), onMark: (haveGame && !viewOnly && !userBoard && this.canMark(activePlayer)) ? this.toggleMark : null}
 
         // no clock on a per-world game, so nothing to start
         let startButton = isOwner && !startTime && !Object.keys(this.state.boardsByWorld || {}).length ? (

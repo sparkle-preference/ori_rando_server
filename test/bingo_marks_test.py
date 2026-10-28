@@ -22,6 +22,8 @@ from test.bingo_reroll_test import GID, _FakeGame, _FakeKey, _FakeNdbClient, _Fa
 
 
 class _FakePlayer(object):
+    takes_marks_from = models.Player.takes_marks_from
+
     def __init__(self, user=None):
         self.user = user
 

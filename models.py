@@ -719,6 +719,10 @@ class Player(ndb.Model):
         nothing player-facing should render or compute for them."""
         return self.nickname == AP_SHADOW_NICK
 
+    def takes_marks_from(self, user):
+        """A claimed seat takes bingo marks from its own account alone; an unclaimed one from anyone."""
+        return not self.user or bool(user and self.user == user.key)
+
     def wire_name(self):
         """Name as safe to embed in the tick wire format and signal text:
         no field separators, no message color characters."""
@@ -1453,6 +1457,9 @@ class BingoGameData(ndb.Model):
             res['start_time_posix'] = timegm(self.start_time.timetuple())
   
         if initial:
+            # per-viewer like is_owner: the seats whose squares a click here can't mark
+            viewer = User.get()
+            res["no_marks"] = [p.pid() for p in players if not p.takes_marks_from(viewer)]
             res["difficulty"] = self.difficulty
             res["bingo_count"] = self.bingo_count
             res["lockout"] = self.lockout

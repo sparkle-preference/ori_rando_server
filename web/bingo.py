@@ -73,10 +73,8 @@ def bingo_set_marks(game_id, player_id):
         return text_resp("Bingo game %s not found" % game_id, 404)
     if player_id not in bingo.player_nums():
         return text_resp("Player %s is not in bingo game %s" % (player_id, game_id), 404)
-    # a claimed seat takes marks from its account alone; an unclaimed one from its board page
     player = bingo.player(player_id)
-    user = User.get()
-    if player and player.user and not (user and player.user == user.key):
+    if player and not player.takes_marks_from(User.get()):
         return text_resp("Only this player's account can mark their board", 403)
     if not Cache.set_marks(game_id, player_id, bits):
         return text_resp("Couldn't save the marks, try again", 503)
