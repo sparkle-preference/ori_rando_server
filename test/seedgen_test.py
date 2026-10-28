@@ -126,8 +126,9 @@ class SeedGenTests(unittest.TestCase):
     # 2026-10-15: the header lost "balanced"; putting it back reproduces the
     # old hash exactly, so no placement moved.
     # 2026-10-18: the Forlorn escape plant joined the pool (retryable escape). Same header,
-    # same 257 lines, same non-EX items; the plant draws a pool item and the EX values re-roll.)
-    SOLO_CANARY = "979a73ca30f8b61fb3a35919b1d33ffccf0f26a42715f0ac040657d1512867ec"
+    # same 257 lines, same non-EX items; the plant draws a pool item and the EX values re-roll.
+    # 2026-10-27: Misty's pre-mortar corridor reaches Keystone 2; same header, lines and items, placements reshuffled.)
+    SOLO_CANARY = "31db8a7562365729725196be41a1d596fea930b6f227bc31931afc5bef53473d"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -309,8 +310,9 @@ class MultiworldGenTests(unittest.TestCase):
     # (bumped 2026-08-02: exp_pool is now per-world (134701: it was being
     # split across all worlds' slots) -- EX values change, placements don't.)
     # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.
-    # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.)
-    MW_CANARY = "a5e1456d24105434ccf61ee8a4132b62c5ee4150225988e3e8557809a10793bd"
+    # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.
+    # 2026-10-27: the Misty connection, see SOLO_CANARY; then share=Saves joined the header, placements unmoved.)
+    MW_CANARY = "1c5cd1547b8b177cdcbec624f430be2bb008e292607d9bab7a57ef5af6b6bfe3"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
@@ -685,7 +687,7 @@ class PlacementRecordTests(unittest.TestCase):
     BURIED = 20000000
     EARLY = 30000000
 
-    def _gen_with_records(self, extra, seedfiles=("randomizer0.bfr",), classic=True, seed="buriedtest3"):
+    def _gen_with_records(self, extra, seedfiles=("randomizer0.bfr",), classic=True, seed="buriedtest5"):
         """Generate and also record (tagged item, reachable-loc-count, round, the count the
         round opened at) at every assignment; the generator itself lands in self.gen.
         -> (records, {seedfile: lines})
