@@ -36,10 +36,10 @@ except Exception as e:
     client = None
 
 def ndb_wsgi_middleware(wsgi_app):
-    if client is None:
-        return wsgi_app
-
+    # client is read per request: tests install their own after the app is built
     def middleware(environ, start_response):
+        if client is None:
+            return wsgi_app(environ, start_response)
         with client.context():
             return wsgi_app(environ, start_response)
 

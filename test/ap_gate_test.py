@@ -77,6 +77,8 @@ class ApSeedGateTestCase(unittest.TestCase):
         r = self.client.get("/generator/seed/x?game_id=99")
         self.assertEqual(r.status_code, 409)
         self.assertIn("location scouts", r.get_json()["error"])
+        # an unscouted world's total is unknown, so the count can't read as complete
+        self.assertIn("5/?", r.get_json()["error"])
 
     def test_ap_seed_with_partial_names_is_refused(self):
         self.link = _FakeLink([5, 4], [5, 2])

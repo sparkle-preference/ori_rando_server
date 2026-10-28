@@ -134,7 +134,8 @@ def ap_seed_not_ready(params, game_id):
     if any(t < 0 for t in totals[:worlds]) or any(c < t for c, t in zip(counts[:worlds], totals[:worlds])):
         done = sum(max(c, 0) for c in counts[:worlds])
         total = sum(t for t in totals[:worlds] if t > 0)
-        return "Waiting for the room's location scouts (%s/%s item names resolved)" % (done, total or "?")
+        unknown = not total or any(t < 0 for t in totals[:worlds])
+        return "Waiting for the room's location scouts (%s/%s item names resolved)" % (done, "?" if unknown else total)
     return None
 
 

@@ -1,5 +1,6 @@
 """Scenario plumbing: roll a game, download seeds, run clients, judge invariants."""
 import json
+import time
 
 import requests
 
@@ -27,6 +28,13 @@ def base_params(seed, players=1, **extra):
     return p
 
 
+def _retryable(r):
+    try:
+        return bool(r.json().get("retryable"))
+    except ValueError:
+        return False
+
+
 class Rolled(object):
     """One built game: param_id, game_id, and each player's downloaded seed text."""
 
@@ -42,8 +50,14 @@ class Rolled(object):
         self.build = body
 
     def seed_text(self, player):
-        r = requests.get(self.stack.base_url + "/generator/seed/%s" % self.param_id,
-                         params={"player_id": player, "game_id": self.game_id}, timeout=60)
+        # a retryable 409 is the AP gate waiting on a world's scouts
+        deadline = time.time() + 60
+        while True:
+            r = requests.get(self.stack.base_url + "/generator/seed/%s" % self.param_id,
+                             params={"player_id": player, "game_id": self.game_id}, timeout=60)
+            if r.status_code != 409 or time.time() > deadline or not _retryable(r):
+                break
+            time.sleep(0.5)
         assert r.status_code == 200, "seed download %s: %s" % (r.status_code, r.text[:200])
         return r.text
 
