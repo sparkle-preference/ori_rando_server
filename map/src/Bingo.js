@@ -597,7 +597,7 @@ export default class Bingo extends React.Component {
                 this.markFails = (this.markFails || 0) + 1
                 if(this.markFails < MARK_RETRIES)
                     return setTimeout(this.sendMarks, MARK_RETRY)
-                NotificationManager.warning("Couldn't save your marks.", "Marks", 5000)
+                NotificationManager.warning("Failed to send marked squares to the server.", "Marks", 5000)
             } else if(status !== 200)
                 NotificationManager.info(responseText, "Marks", 5000)
             this.markFails = 0

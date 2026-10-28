@@ -33,8 +33,8 @@ const BINGO_CLASSES = [
   [".bingo-square.is-complete", "A finished square."],
   [".bingo-square.is-partial", "A square with some progress."],
   [".bingo-square.is-marked", "A square you clicked."],
-  [".bingo-square.is-taken", "A lockout square someone else holds."],
-  [".bingo-subgoal.is-done", "A finished line inside a square."],
+  [".bingo-square.is-taken", "Lockout square held by another player."],
+  [".bingo-subgoal.is-done", "A finished subgoal of an unfinished square."],
   [".bingo-label.is-bingo", "The label of a finished row, column, or diagonal."]
 ];
 const counts = {
