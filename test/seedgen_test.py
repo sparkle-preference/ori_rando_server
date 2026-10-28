@@ -127,8 +127,9 @@ class SeedGenTests(unittest.TestCase):
     # old hash exactly, so no placement moved.
     # 2026-10-18: the Forlorn escape plant joined the pool (retryable escape). Same header,
     # same 257 lines, same non-EX items; the plant draws a pool item and the EX values re-roll.
-    # 2026-10-27: Misty's pre-mortar corridor reaches Keystone 2; same header, lines and items, placements reshuffled.)
-    SOLO_CANARY = "31db8a7562365729725196be41a1d596fea930b6f227bc31931afc5bef53473d"
+    # 2026-10-27: Misty's pre-mortar corridor reaches Keystone 2; same header, lines and items, placements reshuffled.
+    # 2026-10-27: Cleanfel's Ginso logic (#39); same header, lines and items, placements reshuffled.)
+    SOLO_CANARY = "f5d329efcc62158f1eea327ba7d8f6b75bf01107c152d4395bfcb6be3338a77a"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -311,8 +312,9 @@ class MultiworldGenTests(unittest.TestCase):
     # split across all worlds' slots) -- EX values change, placements don't.)
     # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.
     # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.
-    # 2026-10-27: the Misty connection, see SOLO_CANARY; then share=Saves joined the header, placements unmoved.)
-    MW_CANARY = "1c5cd1547b8b177cdcbec624f430be2bb008e292607d9bab7a57ef5af6b6bfe3"
+    # 2026-10-27: the Misty connection, see SOLO_CANARY; then share=Saves joined the header, placements unmoved.
+    # 2026-10-27: Ginso logic (#39); same header, each world owns the same items, placements reshuffled.)
+    MW_CANARY = "9df9a8e3af1cf0069efdfad04086ba15fdcdd8ba8f7fbb799570819c3048479c"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
@@ -946,10 +948,11 @@ class BuriedPlacementTests(PlacementRecordTests):
 
     def test_multiworld_buried_with_owner(self):
         # balanced like the MW canon args; the invariant is assignment-time
+        # burying P2's Grenade this deep fails a roll now and then; this seed rolls
         records, seeds = self._gen_with_records(
             ["--balanced", "--players", "2", "--share-mode", "multiworld",
              "--fass", "%s:SK51@2" % (self.BURIED + 100)],
-            seedfiles=("randomizer_1.bfr", "randomizer_2.bfr"))
+            seedfiles=("randomizer_1.bfr", "randomizer_2.bfr"), seed="buriedtest6")
         self.assertGreaterEqual(min(self._depths(records, "Grenade|2")), 100)
         check_mw_invariants(self, {1: seeds["randomizer_1.bfr"], 2: seeds["randomizer_2.bfr"]})
         # P2's pool copy was consumed: exactly one Grenade for P2 anywhere

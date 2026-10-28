@@ -1709,7 +1709,7 @@ home: BashTree 521 329
 		casual ChargeJump DoubleJump Glide
 		standard ChargeJump AirDash DoubleJump
 		standard ChargeJump Health=4
-		standard Lure Bash
+		expert Lure Bash
 		expert ChargeJump Dash DoubleJump
 		expert ChargeJump Health=3
 		expert ChargeJump ChargeDash Energy=1
@@ -1778,9 +1778,9 @@ home: UpperGinsoTree 532 472
 	pickup: UpperGinsoLowerKeystone
 		casual GinsoKey Bash DoubleJump
 		casual GinsoKey Bash Glide
-		standard GinsoKey Health=5
 		standard GinsoKey DoubleJump
 		standard GinsoKey Bash Grenade
+		standard GinsoKey Bash Health=3
 		standard GinsoKey AirDash Health=3
 		standard GinsoKey ChargeJump Health=3
 		expert GinsoKey Dash

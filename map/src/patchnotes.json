@@ -9,7 +9,13 @@
     "Misc",
     "Plando"
   ],
-  "pending": [],
+  "pending": [
+    {
+      "text": "Ginso Tree logic updates from Cleanfel!",
+      "category": "Logic",
+      "importance": "major"
+    }
+  ],
   "releases": [
       {
         "version": "4.9.14",
