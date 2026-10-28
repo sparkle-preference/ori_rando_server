@@ -5387,10 +5387,6 @@ home: MistyBeforeMiniBoss -798 -54
 home: MistyOrbRoom -849 -49
 	--anchor point: in the orb room after keydoor
 	pickup: GumonSeal
-		casual WallJump
-		casual Climb
-		casual DoubleJump
-		casual Bash
 	conn: MistyPreKeystone2
 		casual WallJump
 		casual Climb
@@ -5402,5 +5398,10 @@ home: MistyPreKeystone2 -983 -32
 	pickup: MistyAbilityCell
 		casual ChargeJump
 		casual Bash Grenade
+		casual Glide Wind
 		standard Lure Bash
 		standard WallJump DoubleJump Health=4
+		standard Climb TripleJump Health=4
+		expert Climb DoubleJump Health=7
+		master TripleJump Health=4
+		master DoubleJump Health=7
