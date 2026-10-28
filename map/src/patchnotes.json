@@ -9,111 +9,131 @@
     "Misc",
     "Plando"
   ],
-  "pending": [
-    {
-      "text": "Bingo: Elementals can show up on Defeat goals, and each Defeat card says what the enemies it names are.",
-      "category": "Bingo",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Bingo: squares you click on your board now show up on your userboard, the spectator page, and your other devices.",
-      "category": "Bingo",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Bingo squares can be restyled with custom CSS, e.g. in an OBS browser source. The [userboard FAQ](/faq?g=bingo_userboard) lists the colors and classes.",
-      "category": "Bingo",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "With Disable Temporary Resource Rows on, health and energy past your max now show dimmed in the bar, at the Temp Row Brightness setting.",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Ghosts: when another player's ghost can't connect even through the relay (usually due to a firewall or VPN), the game now reports failure.",
-      "category": "Multiplayer",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Practice Mode: playing a .bfrp file no longer offers Edit Practice Segment in the pause menu.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Legacy Kuro Behavior now also keeps Kuro's hide-and-seek after the Forlorn escape.",
-      "category": "Seed Generator",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "Archipelago: fixed Grotto starts sometimes putting early items out of reach.",
-      "category": "Logic",
-      "type": "fix",
-      "importance": "minor",
-      "tags": [
-        "Archipelago"
-      ]
-    },
-    {
-      "text": "Fixed game history pages breaking after a pickup at an unrecognized location.",
-      "category": "Website",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Fixed several rare bingo bugs.",
-      "category": "Bingo",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Multiworld: fixed shared items occasionally never arriving, and shards or warmth fragments occasionally arriving twice.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Multiworld seeds sharing World Events with LimitKeys on now generate.",
-      "category": "Seed Generator",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "LimitKeys seeds with a Ginso, Forlorn or Horu start no longer place a second copy of that dungeon's key.",
-      "category": "Seed Generator",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "In multiworld plandos, a world finishing now also releases other worlds' items held in its multipickups.",
-      "category": "Plando",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "New shared category, on by default in Co-op and Multiworld: you can save at an ally's soul link by holding the Soul Link button next to it.",
-      "category": "Multiplayer",
-      "type": "feature",
-      "importance": "major",
-      "sub": [
-        "Share Save Spots"
-      ]
-    },
-    {
-      "text": "Practice Mode now comes with starter segments, added to your practice folder when the game starts. Delete or rename one and it won't come back.",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    }
-  ],
+  "pending": [],
   "releases": [
+      {
+        "version": "4.9.14",
+        "date": "2026-10-27",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Elementals can show up on Defeat goals, and each Defeat card says what the enemies it names are.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Squares you click on your board now show up on your userboard, the spectator page, and your other devices.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Bingo squares can be restyled with custom CSS, e.g. in an OBS browser source. The [userboard FAQ](/faq?g=bingo_userboard) lists the colors and classes.",
+            "category": "Bingo",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "With Disable Temporary Resource Rows on, health and energy past your max now show dimmed in the bar, at the Temp Row Brightness setting.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Ghosts: when another player's ghost can't connect even through the relay (usually due to a firewall or VPN), the game now reports failure.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Practice Mode: playing a .bfrp file no longer offers Edit Practice Segment in the pause menu.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Legacy Kuro Behavior now also keeps Kuro's hide-and-seek after the Forlorn escape.",
+            "category": "Seed Generator",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Archipelago: fixed Grotto starts sometimes putting early items out of reach.",
+            "category": "Logic",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "Fixed game history pages breaking after a pickup at an unrecognized location.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed several rare bingo bugs.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Multiworld: fixed shared items occasionally never arriving, and shards or warmth fragments occasionally arriving twice.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Multiworld seeds sharing World Events with LimitKeys on now generate.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "LimitKeys seeds with a Ginso, Forlorn or Horu start no longer place a second copy of that dungeon's key.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "In multiworld plandos, a world finishing now also releases other worlds' items held in its multipickups.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added Soul Link sharing as a proper share category, on by default in new Co-op and Multiworld games.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Added support for downloading default Practice Mode segments (note: no default segments currently exist).",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Updated the Misty layer change behavior after warping out to avoid weird logic issues with the second Keystone and Ability Cell.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Seeds without logic no longer show out-of-logic warnings at Keystone doors, and the item map explains why the in-logic filter is unavailable.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added Specht98 to the credits (thanks for the pathfinding help)!",
+            "category": "Game",
+            "importance": "minor"
+          }
+        ]
+      },
       {
         "version": "4.9.13",
         "date": "2026-10-18",
