@@ -35,12 +35,12 @@ class _GuestHarness(EmulatorTestCase):
         self.main.app.secret_key = self._secret
         super(_GuestHarness, self).tearDown()
 
-    def _whoami(self, client):
+    def _whoami(self, client, headers=None):
         # the middleware opens its own context; the harness's outer one has to
         # step aside for the duration of the request
         self._ctx.__exit__(None, None, None)
         try:
-            res = client.get("/user/settings")
+            res = client.get("/user/settings", headers=headers)
         finally:
             self._ctx = self.ndb_client.context()
             self._ctx.__enter__()
@@ -83,6 +83,14 @@ class GuestUsersTestCase(_GuestHarness):
                              "a prod revision minted a guest")
         finally:
             self.util.is_debug = self._debug
+
+    def test_a_cross_site_read_mints_no_guest(self):
+        c = self.main.app.test_client()
+        name = self._whoami(c, headers={"Origin": "https://abc123.ext-twitch.tv"})
+        self.assertFalse((name or "").startswith("Guest-"),
+                         "a cross-site read can't keep the cookie, so its guest would be one per request")
+        same = self._whoami(c, headers={"Origin": "http://localhost"})
+        self.assertTrue(same.startswith("Guest-"), "a same-site request lost its guest seat")
 
     def test_flag_off_keeps_the_testing_profile(self):
         self.util.GUEST_USERS = False

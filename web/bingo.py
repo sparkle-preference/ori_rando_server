@@ -8,7 +8,7 @@ from collections import Counter
 from datetime import timedelta
 from time import monotonic
 
-from flask import Blueprint, redirect, render_template
+from flask import Blueprint, redirect, render_template, request
 
 from bingo import BingoGenerator, bingo_board_url
 from cache import Cache
@@ -29,6 +29,20 @@ bp = Blueprint("bingo", __name__)
 # anonymous GETs loop over these, so they are capped; the page offers at most 1000 test runs
 START_CELLS_MAX = 100
 TEST_ITERS_MAX = 1000
+
+# the Twitch extension reads boards from its own origin (https localhost under Local Test)
+TWITCH_ORIGIN = re.compile(r"^https://([a-z0-9]+\.ext-twitch\.tv|localhost(:\d+)?)$")
+TWITCH_READS = {"bingo.bingo_get_game", "bingo.bingo_userboard_tick"}
+
+
+@bp.after_request
+def twitch_cors(response):
+    if request.endpoint in TWITCH_READS:
+        response.vary.add("Origin")
+        origin = request.headers.get("Origin", "")
+        if TWITCH_ORIGIN.match(origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+    return response
 
 
 @bp.route('/bingo/board') #BingoBoard =     

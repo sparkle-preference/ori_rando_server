@@ -13,7 +13,7 @@ import zipfile
 from html import escape
 from uuid import uuid4
 
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 from flask import Blueprint, current_app, g, redirect, request, session, url_for
 
@@ -48,6 +48,10 @@ class _GuestUser(object):
 def _seat_guest():
     # util.GUEST_USERS is read live: tests flip it per case
     if not _guest_seat_live():
+        return
+    # a cross-site read never keeps our cookie, so its seat would be a new user every request
+    origin = request.headers.get("Origin")
+    if origin and urlsplit(origin).netloc != request.host:
         return
     sub = session.get("guest_sub")
     if not sub:
