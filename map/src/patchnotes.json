@@ -19,6 +19,68 @@
       "text": "Upper Blackroot logic updates from lifdoff!",
       "category": "Logic",
       "importance": "major"
+    },
+    {
+      "text": "The map's In Logic filter now works on Glitched seeds.",
+      "category": "Game",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "The map's In Logic filter works again on seeds with custom logic.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "The map's In Logic filter is stricter about Forlorn's keystone door, map altars, and lure paths in Enemy Rando.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Old Split Shards seeds load again.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "A seed that fails to load no longer leaves the previous seed's items behind.",
+      "category": "Game",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Co-op partners in Enemy Rando get the same enemy stats.",
+      "category": "Multiplayer",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Keystone door warnings follow the Archipelago world's key tiers.",
+      "category": "Multiplayer",
+      "type": "fix",
+      "importance": "minor",
+      "tags": [
+        "Archipelago"
+      ]
+    },
+    {
+      "text": "Negative bonus items now take away bonus skills, abilities and upgrades instead of granting them.",
+      "category": "Plando",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "A shared item after a message with a question mark in it now reaches your teammates.",
+      "category": "Plando",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
+      "text": "Removed the NonProgressMapStones variation.",
+      "category": "Plando",
+      "importance": "minor"
     }
   ],
   "releases": [

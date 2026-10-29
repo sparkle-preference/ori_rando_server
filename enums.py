@@ -39,7 +39,7 @@ class ShareType(StrEnum):
 
 class Variation(StrEnum):
     ZERO_EXP = "0XP"
-    DISCRETE_MAPSTONES = "NonProgressMapStones"
+    DISCRETE_MAPSTONES = "NonProgressMapStones"  # retired: nothing reads it, kept so old datastore entities load
     ENTRANCE_SHUFFLE = "Entrance"
     FORCE_MAPSTONES = "ForceMaps"
     FORCE_TREES = "ForceTrees"

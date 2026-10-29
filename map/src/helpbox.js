@@ -11,7 +11,7 @@ If you believe you have recieved an unfinishable seed, please inform Eiko in the
 const noneTitle = "Confused?";
 const noneSub = "Mouse over anything to learn more!";
 const noneLines = ["Additional context-specific information will appear here as you interact with the UI."];
-const vars = ["Starved", "NonProgressMapStones", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "EnemyRando", "GoalModeFinish", "OHKO", "Enhanced"];
+const vars = ["Starved", "Hard", "0XP", "Entrance", "BonusPickups", "DoubleSkills", "StrictMapstones", "ClosedDungeons", "OpenWorld", "StompTriggers", "TPStarved", "WallStarved", "GrenadeStarved", "Race", "InLogicWarps", "Keysanity", "EnemyRando", "GoalModeFinish", "OHKO", "Enhanced"];
 const presets = ["Casual", "Standard", "Expert", "Master", "Glitched", "Custom"];
 const goalModes = ["ForceTrees", "ForceMaps", "Bingo"];
 const keyModes = ["Shards", "Clues", "Limitkeys", "Free"];

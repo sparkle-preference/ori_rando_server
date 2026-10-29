@@ -48,8 +48,9 @@ class HeaderFlag(unittest.TestCase):
         import os
         import re
         src = open(os.path.join(os.path.dirname(__file__), "..", "map", "src", "PlandoBuilder.js"), encoding="utf-8").read()
+        from seedbuilder.seedparams import RETIRED_VARS
         listed = set(re.findall(r'"(\w+)"', re.search(r"const VALID_VARS = \[(.*?)\]", src, re.S).group(1)))
-        self.assertEqual(set(v.value for v in Variation) - listed, set())
+        self.assertEqual(set(v.value for v in Variation) - {v.value for v in RETIRED_VARS} - listed, set())
 
     def test_variation_round_trips(self):
         self.assertEqual(Variation.mk("EnemyRando"), Variation.ENEMY_RANDO)

@@ -86,6 +86,10 @@ class LogicModeTestCase(FromUrlCase):
         got = self.build(logic_mode="master", var="OpenWorld")
         self.assertEqual(set(got.variations), {Variation.STARVED, Variation.OPEN_WORLD})
 
+    def test_a_retired_variation_is_dropped(self):
+        got = self.build(logic_mode="casual", var=["NonProgressMapStones", "OpenWorld"])
+        self.assertEqual(got.variations, [Variation.OPEN_WORLD])
+
     def test_an_explicit_path_diff_wins_over_the_mode(self):
         """A scalar cannot be added to, so the argument replaces rather than merges."""
         self.assertEqual(self.build(logic_mode="master", path_diff="Easy").path_diff,

@@ -116,7 +116,7 @@ const poolMenu = (saved) => {
     return mine.length ? [{label: "Item Pools", options: POOL_PRESETS}, {label: "My Presets", options: mine}] : POOL_PRESETS
 }
 
-const VALID_VARS = ["0XP", "NonProgressMapStones", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp", "Entrance",
+const VALID_VARS = ["0XP", "NoAltR", "ForceMaps", "ForceTrees", "Hard", "WorldTour", "OpenWorld", "ClosedDungeons", "OHKO", "Starved", "BonusPickups", "NoExtraExp", "Entrance",
                     // kept in sync with the Variation enum (enums.py)
                     "WarmthFrags", "DoubleSkills", "StrictMapstones", "StompTriggers", "TPStarved", "GoalModeFinish", "WallStarved", "GrenadeStarved",
                     "Race", "WarpsInsteadOfTPs", "InLogicWarps", "WarpCount", "StartingHealth", "StartingEnergy", "StartingSkills", "NoTPs",

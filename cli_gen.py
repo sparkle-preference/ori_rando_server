@@ -65,7 +65,6 @@ class CLISeedParams(object):
         parser.add_argument("--wall-starved", help="Reduces the rate at which WallJump and Climb will appear early game when not required to advance", action="store_true")
         parser.add_argument("--grenade-starved", help="Reduces the rate at which Grenade will appear early and when not required to advance", action="store_true")
         parser.add_argument("--strict-mapstones", help="Require a mapstone to be placed when a map monument becomes accessible", action="store_true")
-        parser.add_argument("--non-progressive-mapstones", help="Map Stones will retain their behavior from before v1.2, having their own unique drops", action="store_true")
         parser.add_argument("--enemy-rando", help="Shuffle which enemy stands where; lure paths leave the logic", action="store_true")
         parser.add_argument("--enemy-opts", help="Enemy rando options, 'pool=Frogs+Slimes;hp=0.5-2;logic=off' (see seedbuilder/enemyopts.py)", type=str)
         # goal modes
@@ -146,7 +145,7 @@ class CLISeedParams(object):
         self.key_mode = KeyMode.mk(args.keymode) or KeyMode.NONE
         # variations (help)
         varMap = {
-            "zeroxp": "0XP", "non_progressive_mapstones": "NonProgressMapStones", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved", "keysanity": "Keysanity",
+            "zeroxp": "0XP", "ohko": "OHKO", "force_trees": "ForceTrees", "starved": "Starved", "keysanity": "Keysanity",
             "force_mapstones": "ForceMaps", "entrance": "Entrance", "open_world": "OpenWorld", "easy": "DoubleSkills", "strict_mapstones": "StrictMapstones",
             "warmth_frags": "WarmthFrags", "world_tour": "WorldTour", "closed_dungeons": "ClosedDungeons", "tp_starved": "TPStarved", "wall_starved": "WallStarved",
             "warps_instead_of_tps": "WarpsInsteadOfTPs", "in_logic_warps": "InLogicWarps", "warp_count": "WarpCount", "starting_health": "StartingHealth",

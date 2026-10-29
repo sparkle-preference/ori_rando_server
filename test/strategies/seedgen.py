@@ -424,8 +424,7 @@ STARTS = ["Glades", "Grove", "Swamp", "Grotto", "Forlorn", "Valley", "Horu", "Gi
 QUICK_STARTS = [s for s in STARTS if s not in ("Valley", "Sorrow")]
 FLAGS = ["--open-world", "--closed-dungeons", "--force-trees", "--force-mapstones", "--starved", "--tp-starved",
          "--wall-starved", "--grenade-starved", "--strict-mapstones", "--easy", "--zeroxp", "--ohko", "--no-tps",
-         "--goal-mode-finish", "--enemy-rando", "--classic-fill", "--entrance", "--keysanity",
-         "--non-progressive-mapstones"]
+         "--goal-mode-finish", "--enemy-rando", "--classic-fill", "--entrance", "--keysanity"]
 POOL_TPS = {None: 8, "--competitive": 6, "--bonus-lite": 9, "--bonus-pickups": 9, "--hard": 5}
 FIXED_POOLS = [None, "--competitive", "--hard"]
 UNWALKABLE = {"--entrance", "--keysanity", "--in-logic-warps"}

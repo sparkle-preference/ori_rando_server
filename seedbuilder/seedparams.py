@@ -147,6 +147,7 @@ def rolled_player_names(names, params):
 
 
 FLAGLESS_VARS = [Variation.WARMTH_FRAGMENTS, Variation.WORLD_TOUR]
+RETIRED_VARS = {Variation.DISCRETE_MAPSTONES}
 JSON_GAME_MODE = {MultiplayerGameType.SHARED: "Co-op", MultiplayerGameType.SIMUSOLO: "Race", MultiplayerGameType.MULTIWORLD: "Multiworld", MultiplayerGameType.SPLITSHARDS: "SplitShards"}
 JSON_MODE_GAME = {v:k for k,v in JSON_GAME_MODE.items()}
 PBC = picks_by_coord(extras=True)
@@ -456,7 +457,7 @@ class SeedGenParams(ndb.Model):
         if not params.seed:
             log.error("No seed in %r! returning None" % json)
             return None
-        params.variations = enums_from_strlist(Variation, json.get("variations", []))
+        params.variations = [v for v in enums_from_strlist(Variation, json.get("variations", [])) if v not in RETIRED_VARS]
         params.logic_paths = enums_from_strlist(LogicPath, json.get("paths", []))
         if not params.logic_paths:
             log.error("No logic paths in %r! returning None" % json)
@@ -526,7 +527,7 @@ class SeedGenParams(ndb.Model):
         params = SeedGenParams()
         # a caller with nothing to say about the seed gets the clock, not an error
         params.seed = qparams.get("seed") or str(int(time.time()))
-        params.variations = enums_from_strlist(Variation, qparams.getlist("var"))
+        params.variations = [v for v in enums_from_strlist(Variation, qparams.getlist("var")) if v not in RETIRED_VARS]
         params.logic_paths = enums_from_strlist(LogicPath, qparams.getlist("path"))
         # paths and vars add to the mode's; path_diff replaces, having nothing to add to
         group = qparams.get("logic_mode")

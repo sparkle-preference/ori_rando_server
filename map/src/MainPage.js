@@ -1760,7 +1760,7 @@ export default class MainPage extends React.Component {
     }
     getVariationsTab = () => {
         // the Starved trio is CLI-only; Buried placements cover it
-        let filteredVars = ["NonProgressMapStones", "BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags",
+        let filteredVars = ["BonusPickups", "ForceTrees", "WorldTour", "ForceMaps", "WarmthFrags",
                             "Hard", "Bingo", "StompTriggers", "StrictMapstones", "ClosedDungeons",
                             "TPStarved", "WallStarved", "GrenadeStarved"];
         let variationButtons = Object.keys(VAR_NAMES).filter(x => !filteredVars.includes(x)).map(v=> {
