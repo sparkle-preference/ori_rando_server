@@ -1894,27 +1894,65 @@ home: TopGinsoTree 520 558
 		master Stomp DoubleJump Glide Health=3
 		master Stomp DoubleJump Dash Health=3
 home: GinsoEscape 518 626
-	--gonna need to go over a lot of these paths for binning into difficulties, some can be quite a pain
+	-- anchor: starting the escape
+	pickup: GinsoEscapeSpiderExp
+		casual Bash DoubleJump
+		standard Bash
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=2
+		master Climb TripleJump UltraDefense Health=2
+		insane TripleJump UltraDefense Health=2
+	pickup: GinsoEscapeJumpPadExp
+		casual Bash DoubleJump
+		standard Bash
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=4
+		master Climb TripleJump UltraDefense Health=4
+		insane TripleJump UltraDefense Health=4
+	pickup: GinsoEscapeProjectileExp
+		casual Bash DoubleJump WallJump
+		casual Bash DoubleJump ChargeJump
+		standard Bash Climb Health=3
+		standard Bash WallJump
+		standard Bash ChargeJump
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		expert DoubleBash
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=4
+		master Climb TripleJump UltraDefense Health=4
+		insane TripleJump UltraDefense Health=4
+	pickup: GinsoEscapeHangingExp
+		casual Bash DoubleJump WallJump
+		casual Bash DoubleJump ChargeJump Climb
+		standard Bash Climb Health=3
+		standard Bash WallJump
+		expert ChargeJump Climb
+		expert ChargeJump WallJump
+		expert DoubleBash
+		master ChargeJump DoubleJump
+		master WallJump TripleJump UltraDefense Health=4
+		master Climb TripleJump UltraDefense Health=4
+		insane TripleJump UltraDefense Health=5
 	conn: GinsoEscapeComplete
 		casual Bash DoubleJump WallJump
-		casual Bash DoubleJump Climb
-		standard Bash Climb
+		casual Bash DoubleJump ChargeJump Climb
+		standard Bash Climb Health=3
 		standard Bash WallJump
 		expert ChargeJump Climb DoubleJump
 		expert ChargeJump WallJump Health=9
 		expert ChargeJump Climb Health=3
-		expert ChargeJump DoubleJump ChargeDash Health=3
 		expert DoubleBash
 		master ChargeJump DoubleJump Health=7
 		master WallJump TripleJump UltraDefense Health=6
 		master Climb TripleJump UltraDefense Health=10
 		insane TripleJump UltraDefense Health=12
 home: GinsoEscapeComplete 530 948
--- this is a meta area to factor the ginso escape pickups which have identical requirements
-	pickup: GinsoEscapeSpiderExp
-	pickup: GinsoEscapeJumpPadExp
-	pickup: GinsoEscapeProjectileExp
-	pickup: GinsoEscapeHangingExp
+-- this is a meta area for the end of the escape with its pickup and connection
 	pickup: GinsoEscapeExit
 	conn: Swamp
 home: UpperGrotto 433 -122
@@ -4393,6 +4431,15 @@ home: ForlornEscapeStart -732 -236
 	-- the escape can be restarted from here
 	conn: ForlornEscapeEnd
 		casual Glide
+		-- the expert path has 3 extra health for leniency
+		expert Bash Grenade Climb ChargeJump DoubleJump Health=7
+		master Bash Grenade Climb TripleJump UltraDefense Health=2
+		master Climb ChargeJump ChargeDash TripleJump UltraDefense Health=3 Energy=1
+		master GrenadeJump Health=6
+		master GrenadeJump DoubleJump Health=5
+		master GrenadeJump Bash Health=4
+		master GrenadeJump ChargeDash Health=4 Energy=1
+		master GrenadeJump Bash ChargeDash Health=3 Energy=1
 home: ForlornEscapeEnd -1232 -248
 	-- anchored at the plant inside the escape
 	pickup: ForlornEscapePlant
