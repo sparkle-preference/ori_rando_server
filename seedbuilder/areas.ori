@@ -380,6 +380,7 @@ home: SunkenGladesRunaway 184 -220
 		casual ChargeJump
 		casual Bash Grenade
 		master DoubleJump
+		master ChargeDash Energy=2
 	conn: DeathGauntletDoor
 		casual ChargeJump
 		casual Grenade Bash
@@ -1005,7 +1006,7 @@ home: SpiderWaterArea 153 -147
 		master Climb Stomp UltraDefense Health=3
 		master TripleJump Stomp UltraDefense Health=3
 home: BlackrootDarknessRoom 139 -247
-	-- anchor: just after watching/skipping the BRB entrance cutscene
+	-- anchor: on the jumpthrough after the BRB entrance cutscene
 	pickup: DashAreaOrbRoomExp
 		casual WallJump
 		casual Climb
@@ -1045,8 +1046,10 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+	conn: DashPlantAccess
+		master Bash
 home: DashAreaDarknessWithoutOrb 255 -252
-	-- anchor: dash area before the darkness has been lifted, but without possession
+	-- anchor: dash area before the darkness has been lifted, without possession
 	-- of the orb
 	pickup: DashAreaPlant
 		-- these paths collect the plant without actually accessing the ledge and
@@ -1064,6 +1067,7 @@ home: DashAreaDarknessWithoutOrb 255 -252
 		expert Bash Grenade
 		expert ChargeJump
 		expert DoubleJump
+		master Free
 	conn: DashPlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump WallJump
@@ -1094,6 +1098,7 @@ home: DashAreaDarknessWithOrb 250 -252
 		expert Bash Grenade
 		expert ChargeJump
 		expert DoubleJump
+		master Free
 	conn: DashAreaLever
 		casual WallJump
 		casual Climb
@@ -1105,29 +1110,34 @@ home: DashAreaDarknessWithOrb 250 -252
 	conn: DashPlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump WallJump
-		casual Bash Grenade
-		expert WallJump ChargeDash Energy=2
-		expert Climb ChargeDash Energy=2
-		expert WallJump ChargeFlame ChargeDash
-		expert Climb ChargeFlame ChargeDash
-		master DoubleJump Glide
-		master DoubleJump Dash
-		master Bash
-		master TripleJump
+		casual Bash Grenade Climb
+		casual Bash Grenade WallJump
+		standard Bash Grenade
 home: DashAreaLever 285 -230
 	-- anchor: at the lever that activates the Orb Pedestal in the Dash Tree room,
 	-- with possession of the orb
 	pickup: DashAreaPlant
 		standard Grenade Glide
-	conn: DashPlantAccess	
-		standard WallJump DoubleJump AirDash
-		standard Climb DoubleJump AirDash
-		standard WallJump Glide
-		standard Climb DoubleJump Glide
+		standard Grenade AirDash
+		standard Grenade DoubleJump
+	conn: DashPlantAccess
+		standard Glide AirDash Climb
+		standard Glide AirDash WallJump
+		standard Glide DoubleJump Climb
+		standard Glide DoubleJump WallJump
+		standard DoubleJump AirDash Climb
+		standard DoubleJump AirDash WallJump
+		expert WallJump ChargeDash Energy=2
+		expert Climb ChargeDash Energy=2
+		expert WallJump ChargeFlame ChargeDash
+		expert Climb ChargeFlame ChargeDash
+		master DoubleJump Glide
+		master DoubleJump AirDash
+		master TripleJump
 	conn: DashArea
 		casual Free
 home: DashPlantAccess 303 -232
-	-- anchor: on the ledge next to the plant, or within grenade throw range
+	-- anchor: on the ledge next to the plant
 	pickup: DashAreaPlant
 		casual ChargeFlame
 		casual Grenade
@@ -1139,6 +1149,12 @@ home: DashArea 271 -251
 	pickup: DashSkillTree
 	pickup: DashAreaMapstone
 		casual Dash
+		expert WallJump
+		expert Climb
+		expert Bash Grenade
+		expert ChargeJump
+		expert DoubleJump
+		master Free
 	conn: GrenadeAreaAccess
 		casual Stomp ChargeJump
 		casual Stomp Grenade Bash
