@@ -1129,17 +1129,16 @@ home: DashAreaLever 285 -230
 		standard Grenade Glide
 		standard Grenade AirDash
 		standard Grenade DoubleJump
-	conn: DashPlantAccess
-		standard Glide AirDash Climb
-		standard Glide AirDash WallJump
-		standard Glide DoubleJump Climb
-		standard Glide DoubleJump WallJump
-		standard DoubleJump AirDash Climb
-		standard DoubleJump AirDash WallJump
 		expert WallJump ChargeDash Energy=2
 		expert Climb ChargeDash Energy=2
 		expert WallJump ChargeFlame ChargeDash
 		expert Climb ChargeFlame ChargeDash
+	conn: DashPlantAccess
+		standard WallJump Glide
+		standard Glide AirDash Climb
+		standard Glide DoubleJump Climb
+		standard DoubleJump AirDash Climb
+		standard DoubleJump AirDash WallJump
 		master DoubleJump Glide
 		master DoubleJump AirDash
 		master TripleJump
@@ -1168,7 +1167,7 @@ home: DashArea 271 -251
 		casual Stomp ChargeJump
 		casual Stomp Grenade Bash
 		casual Stomp Dash
-		casual ChargeJump Climb
+		standard ChargeJump Climb
 		expert Stomp
 		master Bash
 		glitched Free

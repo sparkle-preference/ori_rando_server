@@ -431,7 +431,8 @@
     "paths": [
      {
       "reqs": [
-       "Bash"
+       "Bash",
+       "WallJump"
       ],
       "tags": [
        "casualCore"
@@ -439,9 +440,26 @@
      },
      {
       "reqs": [
-       "ChargeJump",
-       "Dash",
-       "DoubleJump"
+       "Bash",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "ChargeJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
       ],
       "tags": [
        "casualCore"
@@ -460,10 +478,39 @@
      {
       "reqs": [
        "ChargeJump",
+       "Dash",
+       "DoubleJump",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
        "Health=4"
       ],
       "tags": [
        "standardDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash"
+      ],
+      "tags": [
+       "expertLure"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Dash",
+       "DoubleJump"
+      ],
+      "tags": [
+       "expertCore"
       ]
      },
      {
@@ -479,6 +526,7 @@
       "reqs": [
        "ChargeJump",
        "Dash",
+       "Energy=1",
        "Ability=6"
       ],
       "tags": [
@@ -587,10 +635,10 @@
      },
      {
       "reqs": [
-       "DoubleJump"
+       "Free"
       ],
       "tags": [
-       "masterCore"
+       "expertCore"
       ]
      }
     ],
@@ -741,60 +789,6 @@
    }
   },
   "BlackrootDarknessRoom": {
-   "DashArea": {
-    "paths": [
-     {
-      "reqs": [
-       "WallJump"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "Climb"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "Bash",
-       "Grenade"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "ChargeJump"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "DoubleJump"
-      ],
-      "tags": [
-       "expertCore"
-      ]
-     },
-     {
-      "reqs": [
-       "Bash"
-      ],
-      "tags": [
-       "masterCore"
-      ]
-     }
-    ],
-    "type": "conn"
-   },
    "DashAreaAbilityCell": {
     "coord": 1799708,
     "item": "AC",
@@ -817,10 +811,49 @@
      },
      {
       "reqs": [
-       "Bash"
+       "Bash",
+       "Grenade",
+       "DoubleJump"
       ],
       "tags": [
        "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
       ]
      },
      {
@@ -828,7 +861,7 @@
        "ChargeJump"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      },
      {
@@ -836,11 +869,95 @@
        "DoubleJump"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      }
     ],
     "type": "pickup"
+   },
+   "DashAreaDarknessWithOrb": {
+    "paths": [
+     {
+      "reqs": [
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     }
+    ],
+    "type": "conn"
    },
    "DashAreaOrbRoomExp": {
     "coord": 1519708,
@@ -864,10 +981,49 @@
      },
      {
       "reqs": [
-       "Bash"
+       "Bash",
+       "Grenade",
+       "DoubleJump"
       ],
       "tags": [
        "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
       ]
      },
      {
@@ -875,7 +1031,7 @@
        "ChargeJump"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      },
      {
@@ -883,7 +1039,7 @@
        "DoubleJump"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      }
     ],
@@ -920,10 +1076,28 @@
      },
      {
       "reqs": [
-       "ChargeJump"
+       "ChargeJump",
+       "DoubleJump"
       ],
       "tags": [
        "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump"
+      ],
+      "tags": [
+       "standardCore"
       ]
      },
      {
@@ -944,6 +1118,19 @@
      }
     ],
     "type": "pickup"
+   },
+   "DashPlantAccess": {
+    "paths": [
+     {
+      "reqs": [
+       "Bash"
+      ],
+      "tags": [
+       "masterCore"
+      ]
+     }
+    ],
+    "type": "conn"
    }
   },
   "BlackrootGrottoConnection": {
@@ -1724,46 +1911,32 @@
    }
   },
   "DashArea": {
-   "DashAreaMapstoneAccess": {
+   "DashAreaMapstone": {
+    "coord": 3439744,
+    "item": "MS",
     "paths": [
      {
       "reqs": [
-       "Free"
+       "Dash"
       ],
       "tags": [
        "casualCore"
       ]
-     }
-    ],
-    "type": "conn"
-   },
-   "DashPlantAccess": {
-    "paths": [
+     },
      {
       "reqs": [
-       "ChargeJump",
+       "WallJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
        "Climb"
       ],
       "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "ChargeJump",
-       "WallJump"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "Glide",
-       "WallJump"
-      ],
-      "tags": [
-       "casualCore"
+       "expertCore"
       ]
      },
      {
@@ -1772,35 +1945,12 @@
        "Grenade"
       ],
       "tags": [
-       "casualCore"
+       "expertCore"
       ]
      },
      {
       "reqs": [
-       "WallJump",
-       "DoubleJump",
-       "Dash",
-       "Ability=3"
-      ],
-      "tags": [
-       "standardAirDash"
-      ]
-     },
-     {
-      "reqs": [
-       "Climb",
-       "DoubleJump",
-       "Dash",
-       "Ability=3"
-      ],
-      "tags": [
-       "standardAirDash"
-      ]
-     },
-     {
-      "reqs": [
-       "DoubleJump",
-       "Grenade"
+       "ChargeJump"
       ],
       "tags": [
        "expertCore"
@@ -1808,8 +1958,7 @@
      },
      {
       "reqs": [
-       "ChargeJump",
-       "Grenade"
+       "DoubleJump"
       ],
       "tags": [
        "expertCore"
@@ -1817,143 +1966,14 @@
      },
      {
       "reqs": [
-       "Glide",
-       "Grenade"
-      ],
-      "tags": [
-       "expertCore"
-      ]
-     },
-     {
-      "reqs": [
-       "ChargeJump",
-       "ChargeFlame"
-      ],
-      "tags": [
-       "expertCore"
-      ]
-     },
-     {
-      "reqs": [
-       "WallJump",
-       "Dash",
-       "Energy=2",
-       "Ability=6"
-      ],
-      "tags": [
-       "expertChargeDash"
-      ]
-     },
-     {
-      "reqs": [
-       "Climb",
-       "Dash",
-       "Energy=2",
-       "Ability=6"
-      ],
-      "tags": [
-       "expertChargeDash"
-      ]
-     },
-     {
-      "reqs": [
-       "WallJump",
-       "ChargeFlame",
-       "Dash",
-       "Ability=6"
-      ],
-      "tags": [
-       "expertChargeDash"
-      ]
-     },
-     {
-      "reqs": [
-       "Climb",
-       "ChargeFlame",
-       "Dash",
-       "Ability=6"
-      ],
-      "tags": [
-       "expertChargeDash"
-      ]
-     },
-     {
-      "reqs": [
-       "Grenade",
-       "Dash",
-       "Ability=3"
-      ],
-      "tags": [
-       "expertAirDash"
-      ]
-     },
-     {
-      "reqs": [
-       "DoubleJump",
-       "Glide"
+       "Free"
       ],
       "tags": [
        "masterCore"
-      ]
-     },
-     {
-      "reqs": [
-       "DoubleJump",
-       "Dash"
-      ],
-      "tags": [
-       "masterCore"
-      ]
-     },
-     {
-      "reqs": [
-       "Bash"
-      ],
-      "tags": [
-       "masterCore"
-      ]
-     },
-     {
-      "reqs": [
-       "WallJump",
-       "ChargeFlame",
-       "Ability=3"
-      ],
-      "tags": [
-       "masterChargeFlameBurn"
-      ]
-     },
-     {
-      "reqs": [
-       "Climb",
-       "ChargeFlame",
-       "Ability=3"
-      ],
-      "tags": [
-       "masterChargeFlameBurn"
-      ]
-     },
-     {
-      "reqs": [
-       "DoubleJump",
-       "ChargeFlame",
-       "Ability=3"
-      ],
-      "tags": [
-       "masterChargeFlameBurn"
-      ]
-     },
-     {
-      "reqs": [
-       "DoubleJump",
-       "Ability=12"
-      ],
-      "tags": [
-       "masterTripleJump"
       ]
      }
     ],
-    "type": "conn"
+    "type": "pickup"
    },
    "DashSkillTree": {
     "coord": 2919744,
@@ -2139,7 +2159,71 @@
     "type": "conn"
    }
   },
-  "DashAreaMapstoneAccess": {
+  "DashAreaDarknessWithOrb": {
+   "DashAreaLever": {
+    "paths": [
+     {
+      "reqs": [
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     }
+    ],
+    "type": "conn"
+   },
    "DashAreaMapstone": {
     "coord": 3439744,
     "item": "MS",
@@ -2149,7 +2233,7 @@
        "Dash"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      },
      {
@@ -2192,13 +2276,526 @@
       "tags": [
        "expertCore"
       ]
+     },
+     {
+      "reqs": [
+       "Free"
+      ],
+      "tags": [
+       "masterCore"
+      ]
      }
     ],
     "type": "pickup"
+   },
+   "DashAreaPlant": {
+    "coord": 3119768,
+    "item": "Plant",
+    "paths": [
+     {
+      "reqs": [
+       "Grenade",
+       "ChargeJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "DoubleJump",
+       "Glide"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "DoubleJump",
+       "Dash",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "DoubleJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "Glide"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "Dash",
+       "Ability=3"
+      ],
+      "tags": [
+       "expertAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeFlame",
+       "ChargeJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump",
+       "ChargeFlame",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterChargeFlameBurn"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "ChargeFlame",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterChargeFlameBurn"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "ChargeFlame",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterChargeFlameBurn"
+      ]
+     }
+    ],
+    "type": "pickup"
+   },
+   "DashPlantAccess": {
+    "paths": [
+     {
+      "reqs": [
+       "ChargeJump",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     }
+    ],
+    "type": "conn"
+   }
+  },
+  "DashAreaDarknessWithoutOrb": {
+   "DashAreaMapstone": {
+    "coord": 3439744,
+    "item": "MS",
+    "paths": [
+     {
+      "reqs": [
+       "Dash"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Free"
+      ],
+      "tags": [
+       "masterCore"
+      ]
+     }
+    ],
+    "type": "pickup"
+   },
+   "DashAreaPlant": {
+    "coord": 3119768,
+    "item": "Plant",
+    "paths": [
+     {
+      "reqs": [
+       "Grenade",
+       "ChargeJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeFlame",
+       "ChargeJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump",
+       "ChargeFlame",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterChargeFlameBurn"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "ChargeFlame",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterChargeFlameBurn"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "ChargeFlame",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterChargeFlameBurn"
+      ]
+     }
+    ],
+    "type": "pickup"
+   },
+   "DashPlantAccess": {
+    "paths": [
+     {
+      "reqs": [
+       "ChargeJump",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash"
+      ],
+      "tags": [
+       "masterCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Ability=12"
+      ],
+      "tags": [
+       "masterTripleJump"
+      ]
+     }
+    ],
+    "type": "conn"
+   }
+  },
+  "DashAreaLever": {
+   "DashArea": {
+    "paths": [
+     {
+      "reqs": [
+       "Free"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     }
+    ],
+    "type": "conn"
+   },
+   "DashAreaPlant": {
+    "coord": 3119768,
+    "item": "Plant",
+    "paths": [
+     {
+      "reqs": [
+       "Grenade",
+       "Glide"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "Dash",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade",
+       "DoubleJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump",
+       "Dash",
+       "Energy=2",
+       "Ability=6"
+      ],
+      "tags": [
+       "expertChargeDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "Dash",
+       "Energy=2",
+       "Ability=6"
+      ],
+      "tags": [
+       "expertChargeDash"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump",
+       "ChargeFlame",
+       "Dash",
+       "Ability=6"
+      ],
+      "tags": [
+       "expertChargeDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "ChargeFlame",
+       "Dash",
+       "Ability=6"
+      ],
+      "tags": [
+       "expertChargeDash"
+      ]
+     }
+    ],
+    "type": "pickup"
+   },
+   "DashPlantAccess": {
+    "paths": [
+     {
+      "reqs": [
+       "WallJump",
+       "Glide"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Glide",
+       "Dash",
+       "Climb",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Glide",
+       "DoubleJump",
+       "Climb"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Dash",
+       "Climb",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Dash",
+       "WallJump",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Glide"
+      ],
+      "tags": [
+       "masterCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Dash",
+       "Ability=3"
+      ],
+      "tags": [
+       "masterAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Ability=12"
+      ],
+      "tags": [
+       "masterTripleJump"
+      ]
+     }
+    ],
+    "type": "conn"
    }
   },
   "DashPlantAccess": {
-   "DashAreaMapstoneAccess": {
+   "DashAreaDarknessWithoutOrb": {
     "paths": [
      {
       "reqs": [
@@ -5535,7 +6132,34 @@
     "paths": [
      {
       "reqs": [
-       "WallJump",
+       "DoubleJump",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
        "DoubleJump"
       ],
       "tags": [
@@ -5544,7 +6168,18 @@
      },
      {
       "reqs": [
-       "Climb",
+       "Bash",
+       "Grenade",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
        "DoubleJump"
       ],
       "tags": [
@@ -5556,7 +6191,7 @@
        "ChargeJump"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      },
      {
@@ -5565,7 +6200,7 @@
        "Grenade"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      },
      {
@@ -5580,6 +6215,7 @@
       "reqs": [
        "Dash",
        "WallJump",
+       "Energy=2",
        "Ability=6"
       ],
       "tags": [
@@ -5590,6 +6226,7 @@
       "reqs": [
        "Dash",
        "Climb",
+       "Energy=2",
        "Ability=6"
       ],
       "tags": [
@@ -5719,18 +6356,20 @@
     "paths": [
      {
       "reqs": [
-       "WallJump"
+       "WallJump",
+       "Health=3"
       ],
       "tags": [
-       "casualCore"
+       "casualDamageBoost"
       ]
      },
      {
       "reqs": [
-       "Climb"
+       "Climb",
+       "Health=3"
       ],
       "tags": [
-       "casualCore"
+       "casualDamageBoost"
       ]
      },
      {
@@ -5752,7 +6391,15 @@
      },
      {
       "reqs": [
-       "DoubleJump"
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "Free"
       ],
       "tags": [
        "masterCore"
@@ -5767,18 +6414,20 @@
     "paths": [
      {
       "reqs": [
-       "WallJump"
+       "WallJump",
+       "Health=3"
       ],
       "tags": [
-       "casualCore"
+       "casualDamageBoost"
       ]
      },
      {
       "reqs": [
-       "Climb"
+       "Climb",
+       "Health=3"
       ],
       "tags": [
-       "casualCore"
+       "casualDamageBoost"
       ]
      },
      {
@@ -5800,7 +6449,15 @@
      },
      {
       "reqs": [
-       "DoubleJump"
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "Free"
       ],
       "tags": [
        "masterCore"
@@ -5831,8 +6488,8 @@
       "reqs": [
        "GinsoKey",
        "Bash",
-       "WallJump",
-       "DoubleJump"
+       "DoubleJump",
+       "WallJump"
       ],
       "tags": [
        "casualCore"
@@ -5842,8 +6499,8 @@
       "reqs": [
        "GinsoKey",
        "Bash",
-       "Climb",
-       "DoubleJump"
+       "DoubleJump",
+       "Climb"
       ],
       "tags": [
        "casualCore"
@@ -5885,6 +6542,16 @@
        "GinsoKey",
        "WallJump",
        "DoubleJump",
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
        "Grenade"
       ],
       "tags": [
@@ -19816,6 +20483,10 @@
    }
   },
   "LowerGinsoTree": {
+   "GinsoInnerDoor": {
+    "paths": [],
+    "type": "conn"
+   },
    "GinsoMiniBossDoor": {
     "paths": [
      {
@@ -19857,7 +20528,7 @@
      {
       "reqs": [
        "ChargeJump",
-       "Glide"
+       "DoubleJump"
       ],
       "tags": [
        "casualCore"
@@ -19866,7 +20537,7 @@
      {
       "reqs": [
        "ChargeJump",
-       "DoubleJump"
+       "Glide"
       ],
       "tags": [
        "casualCore"
@@ -19903,7 +20574,7 @@
      },
      {
       "reqs": [
-       "Climb",
+       "ChargeJump",
        "Health=3"
       ],
       "tags": [
@@ -19912,7 +20583,8 @@
      },
      {
       "reqs": [
-       "ChargeJump",
+       "Bash",
+       "Grenade",
        "Health=3"
       ],
       "tags": [
@@ -19942,6 +20614,17 @@
      {
       "reqs": [
        "ChargeJump",
+       "Dash",
+       "Ability=3"
+      ],
+      "tags": [
+       "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade",
        "Dash",
        "Ability=3"
       ],
@@ -19955,6 +20638,24 @@
       ],
       "tags": [
        "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
       ]
      },
      {
@@ -19982,6 +20683,24 @@
     "paths": [
      {
       "reqs": [
+       "WallJump",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
        "ChargeJump"
       ],
       "tags": [
@@ -19999,24 +20718,6 @@
      },
      {
       "reqs": [
-       "WallJump",
-       "DoubleJump"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
-       "Climb",
-       "DoubleJump"
-      ],
-      "tags": [
-       "casualCore"
-      ]
-     },
-     {
-      "reqs": [
        "DoubleJump"
       ],
       "tags": [
@@ -20026,21 +20727,19 @@
      {
       "reqs": [
        "Dash",
-       "Climb",
-       "Ability=6"
+       "Climb"
       ],
       "tags": [
-       "masterChargeDash"
+       "masterCore"
       ]
      },
      {
       "reqs": [
        "Dash",
-       "WallJump",
-       "Ability=6"
+       "WallJump"
       ],
       "tags": [
-       "masterChargeDash"
+       "masterCore"
       ]
      }
     ],
@@ -20069,6 +20768,7 @@
      {
       "reqs": [
        "Dash",
+       "Energy=1",
        "Ability=6"
       ],
       "tags": [
@@ -24639,6 +25339,19 @@
       ],
       "tags": [
        "masterDamageBoost"
+      ]
+     }
+    ],
+    "type": "conn"
+   },
+   "MistyPreKeystone2": {
+    "paths": [
+     {
+      "reqs": [
+       "Free"
+      ],
+      "tags": [
+       "casualCore"
       ]
      }
     ],
@@ -32009,7 +32722,7 @@
        "Grenade"
       ],
       "tags": [
-       "casualBashGrenade"
+       "casualCore"
       ]
      },
      {
@@ -32226,6 +32939,16 @@
       ],
       "tags": [
        "masterCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Dash",
+       "Energy=2",
+       "Ability=6"
+      ],
+      "tags": [
+       "masterChargeDash"
       ]
      }
     ],
@@ -34371,6 +35094,26 @@
      },
      {
       "reqs": [
+       "Bash",
+       "Glide",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Glide",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
        "Bash"
       ],
       "tags": [
@@ -34389,9 +35132,9 @@
      {
       "reqs": [
        "Stomp",
+       "DoubleJump",
        "Dash",
        "WallJump",
-       "DoubleJump",
        "Health=3"
       ],
       "tags": [
@@ -34401,9 +35144,9 @@
      {
       "reqs": [
        "Stomp",
+       "DoubleJump",
        "Dash",
        "Climb",
-       "DoubleJump",
        "Health=3"
       ],
       "tags": [
@@ -34413,9 +35156,9 @@
      {
       "reqs": [
        "Stomp",
+       "DoubleJump",
+       "Glide",
        "WallJump",
-       "DoubleJump",
-       "Glide",
        "Health=3"
       ],
       "tags": [
@@ -34425,9 +35168,9 @@
      {
       "reqs": [
        "Stomp",
-       "Climb",
        "DoubleJump",
        "Glide",
+       "Climb",
        "Health=3"
       ],
       "tags": [
@@ -34438,10 +35181,11 @@
       "reqs": [
        "Stomp",
        "Dash",
+       "Energy=1",
        "Ability=6"
       ],
       "tags": [
-       "expertChargeDash"
+       "expertRocketJump"
       ]
      },
      {
@@ -34521,6 +35265,15 @@
      },
      {
       "reqs": [
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
        "ChargeJump",
        "DoubleJump"
       ],
@@ -34547,29 +35300,28 @@
      },
      {
       "reqs": [
-       "ChargeJump",
-       "Health=3"
+       "ChargeJump"
       ],
       "tags": [
-       "standardDamageBoost"
+       "standardCore"
       ]
      },
      {
       "reqs": [
-       "DoubleJump",
-       "Health=3"
+       "DoubleJump"
       ],
       "tags": [
-       "standardDamageBoost"
+       "standardCore"
       ]
      },
      {
       "reqs": [
        "Dash",
+       "Energy=1",
        "Ability=6"
       ],
       "tags": [
-       "expertChargeDash"
+       "expertRocketJump"
       ]
      },
      {
@@ -34613,31 +35365,35 @@
      },
      {
       "reqs": [
+       "DoubleJump",
        "Dash",
        "WallJump",
-       "DoubleJump",
+       "Ability=3",
        "Health=3"
       ],
       "tags": [
+       "standardAirDash",
        "standardDamageBoost"
       ]
      },
      {
       "reqs": [
+       "DoubleJump",
        "Dash",
        "Climb",
-       "DoubleJump",
+       "Ability=3",
        "Health=3"
       ],
       "tags": [
+       "standardAirDash",
        "standardDamageBoost"
       ]
      },
      {
       "reqs": [
+       "DoubleJump",
+       "Glide",
        "WallJump",
-       "DoubleJump",
-       "Glide",
        "Health=3"
       ],
       "tags": [
@@ -34646,22 +35402,45 @@
      },
      {
       "reqs": [
-       "Climb",
        "DoubleJump",
        "Glide",
+       "Climb",
        "Health=3"
       ],
       "tags": [
        "standardDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Dash",
+       "WallJump",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Dash",
+       "Climb",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
       ]
      },
      {
       "reqs": [
        "Dash",
+       "Energy=1",
        "Ability=6"
       ],
       "tags": [
-       "expertChargeDash"
+       "expertRocketJump"
       ]
      },
      {
@@ -34739,8 +35518,8 @@
      {
       "reqs": [
        "DoubleJump",
-       "WallJump",
        "Grenade",
+       "WallJump",
        "Health=3"
       ],
       "tags": [
@@ -34750,8 +35529,8 @@
      {
       "reqs": [
        "DoubleJump",
+       "Grenade",
        "Climb",
-       "Grenade",
        "Health=3"
       ],
       "tags": [
@@ -34761,8 +35540,8 @@
      {
       "reqs": [
        "DoubleJump",
-       "WallJump",
        "ChargeFlame",
+       "WallJump",
        "Health=3"
       ],
       "tags": [
@@ -34772,8 +35551,8 @@
      {
       "reqs": [
        "DoubleJump",
-       "Climb",
        "ChargeFlame",
+       "Climb",
        "Health=3"
       ],
       "tags": [
@@ -34783,10 +35562,11 @@
      {
       "reqs": [
        "Dash",
+       "Energy=2",
        "Ability=6"
       ],
       "tags": [
-       "expertChargeDash"
+       "expertRocketJump"
       ]
      },
      {
@@ -34893,7 +35673,7 @@
        "Health=3"
       ],
       "tags": [
-       "expertDamageBoost"
+       "standardDamageBoost"
       ]
      },
      {
@@ -34907,15 +35687,14 @@
      },
      {
       "reqs": [
-       "WallJump",
        "DoubleJump",
        "Ability=12",
        "Health=5"
       ],
       "tags": [
        "masterTripleJump",
-       "masterDamageBoost",
-       "masterUltraDefense"
+       "masterUltraDefense",
+       "masterDamageBoost"
       ]
      }
     ],
@@ -35001,8 +35780,17 @@
      },
      {
       "reqs": [
-       "WallJump",
        "Bash"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump",
+       "DoubleJump",
+       "Stomp"
       ],
       "tags": [
        "standardCore"
@@ -35011,16 +35799,8 @@
      {
       "reqs": [
        "Climb",
-       "Bash"
-      ],
-      "tags": [
-       "standardCore"
-      ]
-     },
-     {
-      "reqs": [
        "DoubleJump",
-       "Bash"
+       "Stomp"
       ],
       "tags": [
        "standardCore"
@@ -35028,10 +35808,13 @@
      },
      {
       "reqs": [
-       "Bash"
+       "WallJump",
+       "Glide",
+       "Stomp",
+       "Health=3"
       ],
       "tags": [
-       "expertDoubleBash"
+       "standardDamageBoost"
       ]
      }
     ],
@@ -35047,10 +35830,12 @@
       "reqs": [
        "GinsoKey",
        "Dash",
+       "Energy=1",
        "Ability=6"
       ],
       "tags": [
-       "expertChargeDash"
+       "expertLure",
+       "expertRocketJump"
       ]
      }
     ],
@@ -35068,7 +35853,17 @@
      },
      {
       "reqs": [
-       "DoubleJump"
+       "DoubleJump",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Glide"
       ],
       "tags": [
        "casualCore"
@@ -35081,6 +35876,15 @@
       ],
       "tags": [
        "standardAirDash"
+      ]
+     },
+     {
+      "reqs": [
+       "Dash",
+       "Glide"
+      ],
+      "tags": [
+       "standardCore"
       ]
      },
      {
@@ -35104,6 +35908,15 @@
      {
       "reqs": [
        "Climb",
+       "Health=4"
+      ],
+      "tags": [
+       "standardDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
        "Health=4"
       ],
       "tags": [
@@ -35126,6 +35939,60 @@
       ],
       "tags": [
        "standardDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "Dash",
+       "DoubleJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "Glide",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Health=3"
+      ],
+      "tags": [
+       "expertDamageBoost"
       ]
      }
     ],
@@ -35160,7 +36027,7 @@
        "Climb"
       ],
       "tags": [
-       "standardCore"
+       "casualCore"
       ]
      },
      {
@@ -35202,7 +36069,48 @@
      {
       "reqs": [
        "GinsoKey",
+       "ChargeJump",
        "Stomp"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
+       "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
+       "Grenade"
       ],
       "tags": [
        "casualCore"
@@ -35214,23 +36122,24 @@
        "Bash"
       ],
       "tags": [
-       "casualCore"
+       "standardCore"
       ]
      },
      {
       "reqs": [
        "GinsoKey",
-       "ChargeFlame"
+       "ChargeJump",
+       "Climb"
       ],
       "tags": [
-       "expertCore"
+       "standardCore"
       ]
      },
      {
       "reqs": [
        "GinsoKey",
-       "Climb",
-       "ChargeJump"
+       "ChargeJump",
+       "ChargeFlame"
       ],
       "tags": [
        "expertCore"
@@ -35246,6 +36155,38 @@
       "tags": [
        "expertAirDash"
       ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "ChargeJump",
+       "Grenade"
+      ],
+      "tags": [
+       "masterCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "DoubleJump",
+       "ChargeFlame",
+       "Ability=12"
+      ],
+      "tags": [
+       "masterTripleJump"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "DoubleJump",
+       "Grenade",
+       "Ability=12"
+      ],
+      "tags": [
+       "masterTripleJump"
+      ]
      }
     ],
     "type": "pickup"
@@ -35254,7 +36195,26 @@
     "paths": [
      {
       "reqs": [
-       "Bash"
+       "Bash",
+       "WallJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Climb"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash",
+       "Grenade"
       ],
       "tags": [
        "casualCore"
@@ -35270,9 +36230,17 @@
      },
      {
       "reqs": [
+       "Bash"
+      ],
+      "tags": [
+       "expertDoubleBash"
+      ]
+     },
+     {
+      "reqs": [
        "DoubleJump",
+       "WallJump",
        "Stomp",
-       "WallJump",
        "Ability=12"
       ],
       "tags": [
@@ -35282,8 +36250,8 @@
      {
       "reqs": [
        "DoubleJump",
+       "WallJump",
        "ChargeFlame",
-       "WallJump",
        "Ability=12"
       ],
       "tags": [
@@ -35293,8 +36261,8 @@
      {
       "reqs": [
        "DoubleJump",
+       "WallJump",
        "Grenade",
-       "WallJump",
        "Ability=12"
       ],
       "tags": [
@@ -35304,8 +36272,8 @@
      {
       "reqs": [
        "DoubleJump",
+       "Climb",
        "Stomp",
-       "Climb",
        "Ability=12"
       ],
       "tags": [
@@ -35315,8 +36283,8 @@
      {
       "reqs": [
        "DoubleJump",
+       "Climb",
        "ChargeFlame",
-       "Climb",
        "Ability=12"
       ],
       "tags": [
@@ -35326,8 +36294,8 @@
      {
       "reqs": [
        "DoubleJump",
-       "Grenade",
        "Climb",
+       "Grenade",
        "Ability=12"
       ],
       "tags": [
@@ -35381,17 +36349,18 @@
        "Climb"
       ],
       "tags": [
-       "standardCore"
+       "casualCore"
       ]
      },
      {
       "reqs": [
        "GinsoKey",
        "ChargeJump",
-       "Dash"
+       "Dash",
+       "Ability=3"
       ],
       "tags": [
-       "expertCore"
+       "expertAirDash"
       ]
      },
      {
@@ -35401,6 +36370,15 @@
       ],
       "tags": [
        "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Grenade"
+      ],
+      "tags": [
+       "masterCore"
       ]
      }
     ],
@@ -35433,6 +36411,25 @@
      {
       "reqs": [
        "GinsoKey",
+       "DoubleJump"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
        "Bash",
        "Health=3"
       ],
@@ -35443,51 +36440,50 @@
      {
       "reqs": [
        "GinsoKey",
-       "DoubleJump",
-       "Health=3"
-      ],
-      "tags": [
-       "standardDamageBoost"
-      ]
-     },
-     {
-      "reqs": [
-       "GinsoKey",
-       "ChargeJump",
-       "Health=3"
-      ],
-      "tags": [
-       "standardDamageBoost"
-      ]
-     },
-     {
-      "reqs": [
-       "GinsoKey",
-       "ChargeJump",
        "Dash",
-       "Ability=3"
+       "Ability=3",
+       "Health=3"
       ],
       "tags": [
-       "standardAirDash"
+       "standardAirDash",
+       "standardDamageBoost"
       ]
      },
      {
       "reqs": [
        "GinsoKey",
-       "Health=5"
+       "ChargeJump",
+       "Health=3"
+      ],
+      "tags": [
+       "standardDamageBoost"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Dash"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "ChargeJump"
+      ],
+      "tags": [
+       "expertCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Health=3"
       ],
       "tags": [
        "expertDamageBoost"
-      ]
-     },
-     {
-      "reqs": [
-       "GinsoKey",
-       "Dash",
-       "Ability=6"
-      ],
-      "tags": [
-       "expertChargeDash"
       ]
      }
     ],
@@ -35514,11 +36510,11 @@
      },
      {
       "reqs": [
-       "Climb",
-       "ChargeJump"
+       "ChargeJump",
+       "Climb"
       ],
       "tags": [
-       "standardCore"
+       "casualCore"
       ]
      },
      {
@@ -35543,6 +36539,15 @@
      {
       "reqs": [
        "Bash"
+      ],
+      "tags": [
+       "masterDoubleBash"
+      ]
+     },
+     {
+      "reqs": [
+       "ChargeJump",
+       "Grenade"
       ],
       "tags": [
        "masterCore"
@@ -35669,6 +36674,16 @@
      {
       "reqs": [
        "GinsoKey",
+       "Bash",
+       "Glide"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
        "Bash"
       ],
       "tags": [
@@ -35741,6 +36756,16 @@
        "GinsoKey",
        "Bash",
        "DoubleJump"
+      ],
+      "tags": [
+       "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "GinsoKey",
+       "Bash",
+       "Glide"
       ],
       "tags": [
        "casualCore"
@@ -36957,6 +37982,14 @@
       ],
       "tags": [
        "casualCore"
+      ]
+     },
+     {
+      "reqs": [
+       "Grenade"
+      ],
+      "tags": [
+       "standardCore"
       ]
      },
      {

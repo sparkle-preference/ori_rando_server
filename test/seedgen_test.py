@@ -128,8 +128,9 @@ class SeedGenTests(unittest.TestCase):
     # 2026-10-18: the Forlorn escape plant joined the pool (retryable escape). Same header,
     # same 257 lines, same non-EX items; the plant draws a pool item and the EX values re-roll.
     # 2026-10-27: Misty's pre-mortar corridor reaches Keystone 2; same header, lines and items, placements reshuffled.
-    # 2026-10-27: Cleanfel's Ginso logic (#39); same header, lines and items, placements reshuffled.)
-    SOLO_CANARY = "f5d329efcc62158f1eea327ba7d8f6b75bf01107c152d4395bfcb6be3338a77a"
+    # 2026-10-27: Cleanfel's Ginso logic (#39); same header, lines and items, placements reshuffled.
+    # 2026-11-08: lifdoff's Upper Blackroot logic (#40); same header, lines and items, placements reshuffled.)
+    SOLO_CANARY = "9feb863536b4ed7991ce02aa7f9c922fa8270e15950ecd16498da77347403990"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -313,8 +314,9 @@ class MultiworldGenTests(unittest.TestCase):
     # (bumped 2026-08-22: per-world exp budgets; solo unchanged, MW still env-gated.
     # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.
     # 2026-10-27: the Misty connection, see SOLO_CANARY; then share=Saves joined the header, placements unmoved.
-    # 2026-10-27: Ginso logic (#39); same header, each world owns the same items, placements reshuffled.)
-    MW_CANARY = "9df9a8e3af1cf0069efdfad04086ba15fdcdd8ba8f7fbb799570819c3048479c"
+    # 2026-10-27: Ginso logic (#39); same header, each world owns the same items, placements reshuffled.
+    # 2026-11-08: Upper Blackroot logic (#40), same again.)
+    MW_CANARY = "e5fdebf7518145fc6ec2ccd0cd4dd6c231c25694553b6b71a601b772e0cfa7f9"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
