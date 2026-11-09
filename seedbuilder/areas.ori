@@ -1026,6 +1026,7 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+		expert ChargeDash
 	pickup: DashAreaAbilityCell
 		casual WallJump
 		casual Climb
@@ -1036,6 +1037,7 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+		expert ChargeDash
 	pickup: DashAreaRoofExp
 		casual WallJump
 		casual Climb
@@ -1043,6 +1045,7 @@ home: BlackrootDarknessRoom 139 -247
 		casual ChargeJump DoubleJump
 		casual ChargeJump Glide
 		standard ChargeJump
+		expert ChargeDash
 		master DoubleJump
 		master Bash
 	conn: DashAreaDarknessWithOrb
@@ -1055,6 +1058,7 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+		expert Charge Dash
 	conn: DashPlantAccess
 		master Bash
 home: DashAreaDarknessWithoutOrb 255 -252
@@ -1116,6 +1120,7 @@ home: DashAreaDarknessWithOrb 250 -252
 		casual ChargeJump Glide
 		standard ChargeJump
 		expert DoubleJump
+		insane ChargeDash
 	conn: DashPlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump WallJump
@@ -1173,16 +1178,14 @@ home: DashArea 271 -251
 		glitched Free
 		insane Free
 	conn: RazielNoArea
-		casual Dash WallJump
-		casual Dash ChargeJump
-		casual Dash Bash Grenade
-		casual Dash Climb DoubleJump
-		standard Bash Grenade
-		standard WallJump
-		standard ChargeJump
-		standard Climb DoubleJump
+		casual WallJump
+		casual ChargeJump
+		casual Bash Grenade
+		casual Climb DoubleJump
 		standard Climb AirDash
+		standard Climb Glide
 		expert Climb
+		expert Charge Dash
 		master DoubleJump
 home: RazielNoArea 290 -301
 	-- anchor: on the ledge right before the boulder chase
@@ -1199,7 +1202,15 @@ home: RazielNoArea 290 -301
 		expert Climb DoubleJump
 		expert ChargeJump
 		expert AirDash Climb Health=3
+		expert ChargeDash
+		master DoubleJump Health=3
 		glitched Climb
+	conn: GrenadeAreaAccess
+		casual Stomp ChargeJump
+		casual Stomp Grenade Bash
+		casual Stomp Dash
+		standard ChargeJump Climb
+		expert Stomp
 	conn: GumoHideout
 		glitched Dash WallJump
 		glitched Dash Climb DoubleJump
@@ -1211,6 +1222,7 @@ home: BlackrootGrottoConnection 376 -297
 	pickup: BlackrootTeleporterHealthCell
 	pickup: BlackrootBoulderExp
 		casual Stomp
+		standard Climb ChargeJump
 		glitched Free
 	pickup: BlackrootMap
 		casual Mapstone WallJump
@@ -1219,6 +1231,7 @@ home: BlackrootGrottoConnection 376 -297
 		casual Mapstone ChargeJump
 		standard Mapstone Climb AirDash
 		expert Mapstone Climb
+		master Mapstone DoubleJump
 	conn: SideFallCell
 		casual Stomp WallJump
 		casual Stomp Climb DoubleJump
@@ -1226,6 +1239,18 @@ home: BlackrootGrottoConnection 376 -297
 		casual Stomp ChargeJump
 		standard Stomp Climb AirDash
 		expert Stomp Climb
+		expert DoubleBash
+	conn: RazielNo
+		casual Glide
+		casual DoubleJump
+		standard Free
+	conn: GrenadeAreaAccess
+		expert Dash
+		master ChargeJump
+		master Bash
+		master WallJump
+		master Climb
+		master DoubleJump
 home: GrenadeAreaAccess 258 -383
 	-- anchor: on the raised platform between the fronkey and the spike pit
 	conn: GrenadeArea
