@@ -1328,7 +1328,9 @@ home: LowerBlackroot 279 -389
 		master WallJump Health=5
 	pickup: LowerBlackrootLaserAbilityCell
 		casual Dash Bash Grenade
+		casual Dash DoubleJump Glide
 		standard Dash DoubleJump
+		standard Dash Glide Health=3
 		standard Dash ChargeJump Health=4
 		expert DoubleJump Glide
 		expert Bash Grenade
@@ -1341,6 +1343,7 @@ home: LowerBlackroot 279 -389
 	pickup: LowerBlackrootLaserExp
 		casual Dash WallJump
 		casual Dash Climb DoubleJump
+		casual Dash Climb Glide
 		casual Dash Bash Grenade
 		casual Dash ChargeJump
 		expert WallJump
@@ -1348,6 +1351,7 @@ home: LowerBlackroot 279 -389
 		expert Bash Grenade
 		expert ChargeJump
 		expert ChargeDash
+		master Climb
 	pickup: LowerBlackrootGrenadeThrow
 		casual WallJump Grenade
 		casual Climb Grenade
@@ -1356,13 +1360,14 @@ home: LowerBlackroot 279 -389
 		casual Bash Grenade
 		casual Glide Grenade
 		standard ChargeJump DoubleJump
+		expert DoubleBash
 		timed-level Free
 	conn: LostGrove
 		casual WallJump Grenade
 		casual Climb Grenade
 		casual ChargeJump Grenade
 		casual Bash Grenade
-		expert DoubleJump Grenade
+		expert Grenade
 home: LostGrove 414 -539
 	-- anchor: on the ground just right of the lake, door is closed
 	pickup: LostGroveLongSwim
@@ -1372,21 +1377,25 @@ home: LostGrove 414 -539
 	conn: LostGroveExit
 		casual Grenade Bash DoubleJump WallJump
 		casual Grenade Bash DoubleJump Climb
-		casual Grenade ChargeJump DoubleJump WallJump Health=3
-		casual Grenade ChargeJump DoubleJump Climb Health=3
+		standard Grenade ChargeJump DoubleJump WallJump Health=3
+		standard Grenade ChargeJump DoubleJump Climb Health=3
+		standard Grenade Bash WallJump Health=3
+		standard Grenade Bash Climb
 		expert Grenade Bash WallJump
-		expert Grenade Bash Climb
 		expert Grenade Glide ChargeJump Climb
-		expert Grenade ChargeJump WallJump Health=7
-		expert Grenade ChargeJump Climb Health=7
+		expert Grenade ChargeJump WallJump Health=5
+		expert Grenade ChargeJump Climb Health=3
+		expert Grenade Dash ChargeJump WallJump Health=5
 		expert Grenade Dash ChargeJump WallJump Health=3
 		expert Grenade Glide ChargeJump WallJump Health=3
-		expert Grenade AirDash ChargeJump Climb
+		expert Grenade ChargeDash ChargeJump Climb
 		master Grenade TripleJump WallJump
-		master Grenade TripleJump Climb
+		master Grenade TripleJump
+		master Grenade DoubleJump Stomp AirDash Climb
+		master Grenade DoubleJump Stomp ChargeDash
 		master GrenadeJump
 home: LostGroveExit 421 -499
-	-- anchor: on the lever to open the door to the teleporter
+	-- anchor: on the jumpthrough above the lever to open the door to the teleporter
 	pickup: LostGroveAbilityCell
 	pickup: LostGroveHiddenExp
 		casual WallJump
@@ -1394,10 +1403,11 @@ home: LostGroveExit 421 -499
 		casual Bash Grenade
 		casual ChargeJump
 		casual DoubleJump
+		standard Dash
 	pickup: LostGroveTeleporter
 		-- assume the blue grenade floor still exists
 		-- Either Dash or Grenade locked.
-		casual BashGrenade
+		casual Bash Grenade
 		casual Grenade WallJump DoubleJump Glide
 		casual Grenade Climb DoubleJump Glide
 		casual Dash WallJump
