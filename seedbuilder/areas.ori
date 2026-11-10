@@ -4440,6 +4440,9 @@ home: ForlornEscapeStart -732 -236
 		master GrenadeJump Bash Health=4
 		master GrenadeJump ChargeDash Health=4 Energy=1
 		master GrenadeJump Bash ChargeDash Health=3 Energy=1
+		master GrenadeJump UltraDefense Health=3
+		master GrenadeJump Bash UltraDefense Health=2
+		master GrenadeJump ChargeDash UltraDefense Health=2 Energy=1
 home: ForlornEscapeEnd -1232 -248
 	-- anchored at the plant inside the escape
 	pickup: ForlornEscapePlant
