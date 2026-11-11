@@ -1918,6 +1918,8 @@ home: GinsoEscape 518 626
 		casual Bash DoubleJump ChargeJump
 		standard Bash WallJump
 		standard Bash ChargeJump
+		standard Bash DoubleJump Climb
+		standard Bash AirDash Climb
 		standard Bash Climb Health=3
 		standard ChargeJump Climb
 		standard ChargeJump WallJump
@@ -1930,7 +1932,8 @@ home: GinsoEscape 518 626
 		casual Bash DoubleJump WallJump
 		casual Bash DoubleJump ChargeJump Climb
 		standard Bash WallJump
-		standard Bash ChargeJump Climb
+		standard Bash DoubleJump Climb
+		standard Bash AirDash Climb
 		standard Bash Climb Health=3
 		standard ChargeJump Climb
 		standard ChargeJump WallJump
@@ -1944,6 +1947,8 @@ home: GinsoEscape 518 626
 		casual Bash DoubleJump ChargeJump Climb
 		standard Bash WallJump
 		standard Bash ChargeJump Climb
+		standard Bash DoubleJump Climb
+		standard Bash AirDash Climb
 		standard Bash Climb Health=3
 		expert ChargeJump DoubleJump Climb
 		expert ChargeJump Climb Health=3
