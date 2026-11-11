@@ -1941,7 +1941,7 @@ home: GinsoEscape 518 626
 		master ChargeJump DoubleJump
 		master WallJump TripleJump UltraDefense Health=4
 		master Climb TripleJump UltraDefense Health=4
-		insane TripleJump UltraDefense Health=5
+		insane TripleJump UltraDefense Health=4
 	conn: GinsoEscapeComplete
 		casual Bash DoubleJump WallJump
 		casual Bash DoubleJump ChargeJump Climb
@@ -1956,11 +1956,10 @@ home: GinsoEscape 518 626
 		master ChargeJump WallJump Health=9
 		master ChargeJump DoubleJump Health=7
 		master GrenadeJump
-		master WallJump TripleJump UltraDefense Health=8
+		master WallJump TripleJump UltraDefense Health=7
 		master Climb TripleJump UltraDefense Health=11
-		insane WallJump TripleJump UltraDefense Health=7
-		insane Climb TripleJump UltraDefense Health=10
-		insane TripleJump UltraDefense Health=13
+		insane Climb TripleJump UltraDefense Health=8
+		insane TripleJump UltraDefense Health=9
 home: GinsoEscapeComplete 530 948
 -- this is a meta area for the end of the escape with its pickup and connection
 	pickup: GinsoEscapeExit
