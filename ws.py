@@ -371,8 +371,7 @@ def _failure_ack(frame):
 
 
 def _begin_frame():
-    """Empty the socket's ndb context: it lives as long as the socket and can't nest.
-    Pending callbacks re-cache whatever a txn wrote, so they run before the clear."""
+    """Empty the socket-long ndb context. Pending callbacks re-cache a txn's writes, so they run first."""
     context = ndb.get_context()
     context.eventloop.run()
     context.clear_cache()
