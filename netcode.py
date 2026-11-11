@@ -58,10 +58,10 @@ def found_pickup(game_id, player_id, coords, kind, id, payload):
     status = game.found_pickup(player_id, pickup, coords, remove, "override" in payload, zone, [int(payload.get("s%s" % i) or 0) for i in range(8)])
     netperf("found_pickup", t0, gid=game_id, pid=player_id, coords=coords, kind=kind, status=status)
     if game.is_race:
-        Cache.clear_items(game_id)
+        Cache.clear_items(game_id, player_id)
     elif pickup.code in ["AC", "KS", "HC", "EC", "SK", "EV", "TP"] or (pickup.code == "RB" and pickup.id in [17, 19, 21]):
         Cache.clear_reach(game_id, player_id)
-        Cache.clear_items(game_id)
+        Cache.clear_items(game_id, player_id)
     return _code(status)
 
 
@@ -84,11 +84,10 @@ def tick(game_id, player_id, payload):
     y = payload.get("y")
     gpid = (game_id, player_id)
     checksum = bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8))
-    if Cache.get_seen_checksum(gpid) == checksum:
-        cached_output = Cache.get_output(gpid)
-        if cached_output:
-            Cache.set_pos(game_id, player_id, x, y)
-            return 200, cached_output
+    armed, cached_output = Cache.get_tick_cache(gpid)
+    if armed == checksum and cached_output:
+        Cache.set_pos(game_id, player_id, x, y)
+        return 200, cached_output
     # armed before the read, so a grant that busts it mid-tick sends the next tick down here too
     Cache.set_seen_checksum(gpid, checksum)
     try:
@@ -118,7 +117,14 @@ def _tick_slow(game_id, player_id, payload):
         p = Player.tick_update_txn(p.key, vers, seen, have)
         # set_have has merge semantics — pass only our own entry
         Cache.set_have(game_id, {p.pid(): p.have_coords()})
-    return 200, p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
+    return 200, _body(game, p)
+
+
+def _body(game, p):
+    """Render the tick body and cache it for the fast path."""
+    out = p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
+    Cache.set_output(p.idpts(), out)
+    return out
 
 
 def tick_output(game_id, player_id):
@@ -126,8 +132,7 @@ def tick_output(game_id, player_id):
     game = Game.with_id(game_id)
     if not game:
         return None
-    p = game.player(player_id)
-    return p.output(include_slots=(game.mode == MultiplayerGameType.MULTIWORLD))
+    return _body(game, game.player(player_id))
 
 
 
@@ -225,7 +230,8 @@ def ap_status(game_id):
     # cache before heal, or this row could overwrite a bust from the thread heal spawns
     text = json.dumps(link.report())
     Cache.set_aplink_report(game_id, text)
-    ap_bridge.heal(game_id)  # passive: re-arms crashed threads, never idle ones
+    # passive like heal, and it corrects a memo that predates the link
+    ap_bridge.ensure(game_id, link=link, wake_idle=False)
     return 200, text
 
 
@@ -354,9 +360,6 @@ def signal_callback(game_id, player_id, signal):
 
 def connect(game_id, player_id, payload):
     game = Game.with_id(game_id)
-    hist = Cache.get_hist(game_id)
-    if not hist:
-        Cache.set_hist(game_id, player_id, [])
     if game:
         p = game.player(player_id)
         vers = payload.get("version")
@@ -376,6 +379,9 @@ def connect(game_id, player_id, payload):
                 # manifest); teammates sharing one seed file in cloned games is fine
                 log.warning("seed player mismatch: %s.%s uploaded player %s's seed", game_id, player_id, up_pid)
                 _warn_signal(p, "msg:@Warning: you loaded Player %s's seed but connected as Player %s. In multiworld you need your own randomizer.bfr!@" % (up_pid, player_id))
+        # a reload always gets a fresh body and tracker, whatever the mode
+        Cache.clear_items(game_id, player_id)
+        Cache.clear_seen_checksum(p.idpts())
         game.sanity_check()  # cheap if game is short!
     else:
         # we no longer support uploading seeds
@@ -403,26 +409,22 @@ def goals(game_id, player_id):
 
 
 def bingo_update(game_id, player_id, payload):
-    bingo = BingoGameData.with_id(game_id)
-    if not bingo:
-        return 404, "Bingo game %s not found" % game_id
-    if int(player_id) not in bingo.player_nums():
-        return 412, "player not in game! %s" % bingo.player_nums()
     bingo_data = json.loads(payload.get("bingoData")) if payload.get("bingoData") else None
     t0 = monotonic()
-    evlog_len = len(bingo.event_log)
-    def publish():
-        # _board_json is stashed by update(); None = nothing to publish
-        board = getattr(bingo, "_board_json", None)
-        if board is not None:
-            Cache.set_board(game_id, board)
     try:
         with bingo_lock(game_id):
-            # fresh read under the lock; the 404/412 checks above tolerate a stale one
+            # the one read, fresh and under the lock
             bingo = BingoGameData.get_by_id(int(game_id), use_cache=False)
+            if not bingo:
+                return 404, "Bingo game %s not found" % game_id
+            if int(player_id) not in bingo.player_nums():
+                return 412, "player not in game! %s" % bingo.player_nums()
+            evlog_len = len(bingo.event_log)
             bingo.update(bingo_data, player_id, game_id)
-            # inside the lock, so publishes land in write order
-            publish()
+            # _board_json is stashed by update(); published inside the lock, so in write order
+            board = getattr(bingo, "_board_json", None)
+            if board is not None:
+                Cache.set_board(game_id, board)
         netperf("bingo_update", t0, gid=game_id, pid=player_id, evlog=evlog_len)
         # signal_send_txn doesn't bust; do it once the update has landed
         for idpts in getattr(bingo, "_signal_pids", []):

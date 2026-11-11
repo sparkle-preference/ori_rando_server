@@ -112,6 +112,11 @@ def _wire_escape(text):
     return text.replace("%", "%25").replace(",", "%2C").replace(";", "%3B")
 
 
+def _prog_state(player):
+    """What save_bingo_txn would write, as plain data."""
+    return [prog.to_dict() for prog in player.bingo_prog], player.bingo_last_tp
+
+
 def _pid(pkey):
     # type: (ModelKey) -> int
     try:
@@ -811,9 +816,7 @@ class Player(ndb.Model):
                 outlines.append(extras)
         elif self.signals:
             outlines.append("|".join(self.signals))
-        out = ",".join(outlines)
-        Cache.set_output(self.idpts(), out)
-        return out
+        return ",".join(outlines)
 
     def signal_send(self, signal):
         # stale-put hazard: everything outside tests wants signal_send_txn.
@@ -1398,7 +1401,7 @@ class BingoGameData(ndb.Model):
 
     def get_players(self):
         # type: () -> List[Player]
-        return [p.get() for p in self.players]
+        return ndb.get_multi(self.players)
 
     def player_nums(self):  return [_pid(k) for k in self.players]
 
@@ -1610,6 +1613,7 @@ class BingoGameData(ndb.Model):
         team.score = 0
         players_by_id = {_pid(p.key): p for p in self.get_players()}  # type: Dict[int, Player]
         player = players_by_id[player_id]
+        prog_before = _prog_state(player)
         # no card is named for it; journey cards read it via prog_json
         player.bingo_last_tp = ((bingo_data or {}).get("LastTouchedTeleporter") or {}).get("value") or ""
         cpid = _pid(team.captain)
@@ -1732,7 +1736,9 @@ class BingoGameData(ndb.Model):
                 self._ap_goal_worlds = [w for w in (self.ap_world_for(p.pid()) for p in p_list) if w]
         # the caller publishes this once the update has landed
         self._board_json = self.get_json(players=players_by_id.values())
-        Player.save_bingo_txn(player.key, player.bingo_prog, player.bingo_last_tp)
+        # clients re-post the same snapshot on a timer
+        if _prog_state(player) != prog_before:
+            Player.save_bingo_txn(player.key, player.bingo_prog, player.bingo_last_tp)
         if need_write:
             self.put()
 
@@ -2108,7 +2114,7 @@ class Game(ndb.Model):
         return "\n\t" + "\n\t".join(out_lines)
 
     def get_players(self):
-        return [p.get() for p in self.players]
+        return ndb.get_multi(self.players)
 
     def visible_players(self):
         """get_players() minus the AP shadows: what every player-facing surface should use."""
@@ -2224,14 +2230,18 @@ class Game(ndb.Model):
         return inventories
 
     def sanity_check(self):
-        Cache.clear_items(self.key.id())
+        gid = self.key.id()
+        if self.mode != MultiplayerGameType.SHARED:
+            # nothing to repair, so nobody's entity or tick body is needed
+            for pid in self.player_nums():
+                Cache.clear_reach(gid, pid)
+            return False
         ps = [p for p in self.get_players() if p]
         for p in ps:
+            Cache.clear_items(gid, p.pid())
             Cache.clear_reach(*p.idpts())
             Cache.clear_seen_checksum(p.idpts())
 
-        if self.mode != MultiplayerGameType.SHARED:
-            return False
         if not Cache.san_check(self.key.id()):
             log.debug("Skipping sanity check")
             return False
@@ -2258,7 +2268,6 @@ class Game(ndb.Model):
                 for item, cnt in (player.bonuses or {}).items():
                     bonus_max[item] = max(bonus_max.get(item, 0), cnt)
             for player in players:
-                Cache.set_hist(self.key.id(), player.pid(), self.history([player.pid()]))
                 for pickup, count in targets:
                     has = player.has_pickup(pickup)
                     if has > count:
@@ -2318,16 +2327,15 @@ class Game(ndb.Model):
         except Exception:
             Player.unclaim_shared_released_txn(finisher.key, fresh)
             raise
-        Cache.clear_items(self.key.id())
         for p in players:
+            Cache.clear_items(*p.idpts())
             Cache.clear_seen_checksum(p.idpts())
             Cache.clear_reach(*p.idpts())
         for coords in fresh:
             for pickup, zone in by_coords[coords]:
                 hl = HistoryLine(pickup_code=pickup.code, timestamp=utcnow(), pickup_id=str(pickup.id),
                                  coords=coords, removed=False, player=finisher_pid)
-                if Player.append_hl_chunked_txn(finisher.key, hl):
-                    Cache.append_hl(self.key.id(), finisher_pid, hl)
+                Player.append_hl_chunked_txn(finisher.key, hl)
         return len(grants)
 
     def mw_release(self, finisher_pid, params=None):
@@ -2387,14 +2395,6 @@ class Game(ndb.Model):
         return released
 
 
-    def rebuild_hist(self):
-        # shadows have no history, and registering their pids here is what
-        # puts them in the cache's pid map for every later reader
-        gid = self.key.id()
-        for pid in [p.pid() for p in self.visible_players()]:
-            Cache.set_hist(gid, pid, self.history([pid]))
-        return Cache.get_hist(gid)
-    
     def create_ap_shadows(self, params):
         """AP games: shadow players K+1..2K whose slot bitfields are the bridge's outbox
         (world v checking reserved slot i flips bit i on K+v). Idempotent."""
@@ -2432,7 +2432,6 @@ class Game(ndb.Model):
                 # a cached position puts a marker on the tracker map, which
                 # then asks for an inventory only visible players have
                 Cache.set_pos(gid, pid, 189, -210)
-            Cache.set_hist(gid, pid, [])
         else:
             k = player.key
         if k not in self.players:
@@ -2455,20 +2454,23 @@ class Game(ndb.Model):
         pid = int(pid)
         retcode = 200
         share = pickup.is_shared(self.shared)
-        players = self.get_players()
-        finder = [p for p in players if p.pid() == pid]
+        # only these modes read the other players
+        if self.mode in (MultiplayerGameType.SHARED, MultiplayerGameType.SPLITSHARDS):
+            players = self.get_players()
+            finder = next((p for p in players if p.pid() == pid), None)
+        else:
+            players = None
+            finder = self.player(pid, create=False)
         if not finder:
             log.error("Got pickup from unknown player %s! Creating to avoid crash" % pid)
             finder = self.player(pid)
-        else:
-            finder = finder[0]
         finder_seen = finder.seen_coords()
 
         if pickup.code == "WT":
             if coords in pbc:
                 zone = zone_translate[pbc[coords].zone]
             if zone in relics_by_zone:
-                Cache.clear_items(self.key.id())
+                Cache.clear_items(self.key.id(), pid)
                 pickup = relics_by_zone[zone]
                 share = ShareType.MISC in self.shared
 
@@ -2538,6 +2540,7 @@ class Game(ndb.Model):
                 Player.transaction_pickup_batch([p.key for p in players], grants)
                 # clear AFTER commit so a failed txn can't leave stale-cleared caches
                 for player in players:
+                    Cache.clear_items(*player.idpts())
                     Cache.clear_seen_checksum(player.idpts())
         elif self.mode == MultiplayerGameType.SPLITSHARDS:
             if pickup.code != "RB" or pickup.id not in [17, 19, 21]:
@@ -2549,11 +2552,8 @@ class Game(ndb.Model):
                         return 410
         elif self.mode == MultiplayerGameType.MULTIWORLD:
             if pickup.code == "MW":
-                owner = next((p for p in players if p.pid() == pickup.owner), None)
-                if not owner:
-                    # the owner hasn't connected yet: create their Player so
-                    # the find is durable, not dropped
-                    owner = self.player(pickup.owner)
+                # created if the owner hasn't connected yet, so the find is durable
+                owner = self.player(pickup.owner)
                 if Player.mark_slot_txn(owner.key, pickup.slot):
                     # or an idle owner's fast path never shows the flip
                     Cache.clear_seen_checksum(owner.idpts())
@@ -2564,16 +2564,18 @@ class Game(ndb.Model):
                     claimed = self.claim_shared_find(finder, coords)
                 if not claimed:
                     return 200
+                # the txn reads them; nothing here needs the entities
+                pkeys = list(self.players)
                 try:
-                    Player.transaction_pickup_batch([p.key for p in players], [(pickup, remove, coords, pid)])
+                    Player.transaction_pickup_batch(pkeys, [(pickup, remove, coords, pid)])
                 except Exception:
                     if abs(coords) > 2:
                         Player.unclaim_shared_released_txn(finder.key, [coords])
                     raise
-                Cache.clear_items(self.key.id())
-                for player in players:
-                    Cache.clear_seen_checksum(player.idpts())
-                    Cache.clear_reach(*player.idpts())
+                for gpid in [(self.key.id(), _pid(k)) for k in pkeys]:
+                    Cache.clear_items(*gpid)
+                    Cache.clear_seen_checksum(gpid)
+                    Cache.clear_reach(*gpid)
             # own-world pickups need nothing here. Release waits for /complete: warmth
             # returned comes at the start of the escape, too early.
         elif self.mode in [MultiplayerGameType.SIMUSOLO, MultiplayerGameType.BINGO]:
@@ -2589,7 +2591,6 @@ class Game(ndb.Model):
         if coords in range(24, 60, 4) and zone in map_coords_by_zone:
             hl.map_coords = map_coords_by_zone[zone]
         if Player.append_hl_chunked_txn(finder.key, hl):
-            Cache.append_hl(self.key.id(), hl.player, hl)
             if not self.has_history:
                 try:
                     Game.mark_history_txn(self.key)
@@ -2599,16 +2600,18 @@ class Game(ndb.Model):
                     # already committed its history line and its grants
                     log.exception("could not mark game %s as played", self.key.id())
         if hl.map_coords or coords in trees_by_coords:
-            Cache.clear_items(self.key.id())
+            Cache.clear_items(self.key.id(), finder.pid())
 
     def clean_up(self):
-        [p.delete() for p in self.players]
-        Cache.remove_game(self.key.id())
-        if self.params:
-            self.params.delete()
+        # chunks are children nothing lists, so they are found by ancestor
+        doomed = list(self.players) + HistoryChunk.query(ancestor=self.key).fetch(keys_only=True)
         if self.bingo_data:
-            self.bingo_data.delete()
-        self.key.delete()
+            doomed += BingoEventChunk.query(ancestor=self.bingo_data).fetch(keys_only=True)
+            doomed.append(self.bingo_data)
+        if self.params:
+            doomed.append(self.params)
+        ndb.delete_multi(doomed + [self.key])
+        Cache.remove_game(self.key.id())
         return self.key
 
     def reset(self):
@@ -2624,7 +2627,6 @@ class Game(ndb.Model):
             b_data.creator = self.creator
             b_data.reset()
         Cache.remove_game(self.key.id())
-        self.rebuild_hist()
         self.put()
 
     def relics_for(self, player):
@@ -2733,15 +2735,13 @@ class Game(ndb.Model):
                         player.put()
             else:
                 for i in range(params.players):
-                    player = game.player(i + 1)
-                    Cache.set_pos(gid, i + 1, 189, -210)
+                    game.player(i + 1)
         if getattr(params, "ap_mode", False):
             game.create_ap_shadows(params)
         user = User.get()
         if user:
             game.creator = user.key
         game.put()
-        game.rebuild_hist()
         return game
 
     @staticmethod

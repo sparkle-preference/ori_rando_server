@@ -13,6 +13,8 @@ from pymemcache import serde
 POOL_SIZE = 128
 # bingo square marks are viewer hints, never persisted: a lapsed key just clears them
 MARKS_TTL = 43200
+# how long a pid's registration is trusted before the registry is read again
+REGISTER_MEMO = 60
 
 
 def _with_marks(marks, pid, bits):
@@ -32,6 +34,7 @@ class MemcachedCache(object):
         # desync the protocol. ignore_exc turns get failures into misses.
         self.memcache = PooledClient((host, port), serde=serde.pickle_serde,
                                      max_pool_size=POOL_SIZE, ignore_exc=True)
+        self._registered = {}
 
     def memcache_get(self, key):
         try:
@@ -86,15 +89,35 @@ class MemcachedCache(object):
         self.memcache.set(key="gid_max", value=int(gid))
 
     # --- per-player keys ({gid}.{pid}.{suffix}) plus a {gid}.pids registry for map readers.
-    # Registration is lazy; a lost update is repaired by that player's next write.
+    # Registration is lazy and memoized, so it is only remembered once it has landed.
     def _pids(self, gid):
         return [int(p) for p in (self.memcache_get(key="%s.pids" % gid) or [])]
 
     def _register_pid(self, gid, pid):
-        pids = set(self._pids(gid))
-        if int(pid) not in pids:
-            pids.add(int(pid))
-            self.memcache.set(key="%s.pids" % gid, value=sorted(pids), expire=604800)
+        # every tick lands here; the memo spares it the registry read
+        memo, now = (str(gid), int(pid)), time.monotonic()
+        if self._registered.get(memo, 0) > now:
+            return
+        if len(self._registered) > 4096:
+            self._registered = {k: v for k, v in self._registered.items() if v > now}
+        if self._add_pid("%s.pids" % gid, int(pid)):
+            self._registered[memo] = now + REGISTER_MEMO
+
+    def _add_pid(self, key, pid):
+        """CAS: the memo means a lost update would stay lost; False if it kept losing."""
+        try:
+            for _ in range(5):
+                pids, token = self.memcache.gets(key)
+                if pids and pid in pids:
+                    return True
+                if token is None:
+                    if self.memcache.add(key=key, value=[pid], expire=604800, noreply=False):
+                        return True
+                elif self.memcache.cas(key, sorted(set(pids) | {pid}), token, expire=604800, noreply=False):
+                    return True
+        except Exception:
+            pass
+        return False
 
     def _map_get(self, gid, suffix):
         pids = self._pids(gid)
@@ -106,20 +129,6 @@ class MemcachedCache(object):
         except Exception:
             return {}
         return {keymap[k]: v for k, v in got.items()}
-
-    def set_hist(self, gid, pid, hist):
-        self._register_pid(gid, pid)
-        self.memcache.set(key="%s.%s.hist" % (gid, pid), value=hist, expire=14400)
-
-    def append_hl(self, gid, pid, hl):
-        # unlocked RMW; the writers are this player's own requests and the sanity check
-        self._register_pid(gid, pid)
-        hist = self.memcache_get(key="%s.%s.hist" % (gid, pid)) or []
-        hist.append(hl)
-        self.memcache.set(key="%s.%s.hist" % (gid, pid), value=hist, expire=14400)
-
-    def get_hist(self, gid):
-        return self._map_get(gid, "hist")
 
     def get_reachable(self, gid):
         return self._map_get(gid, "reach")
@@ -154,7 +163,7 @@ class MemcachedCache(object):
     def set_relics(self, gid, relics):
         self.memcache.set(key="%s.relics" % gid, value=relics, expire=14400)
 
-    def clear_items(self, gid, pid=1):
+    def clear_items(self, gid, pid):
         self.set_items(gid, pid, {})
 
     def get_pos(self, gid):
@@ -220,6 +229,15 @@ class MemcachedCache(object):
     def get_output(self, gpid):
         return self.memcache_get(key="%s.%s.output" % gpid)
 
+    def get_tick_cache(self, gpid):
+        """(armed seen checksum, cached body) in one trip."""
+        keys = ["%s.%s.seenhash" % gpid, "%s.%s.output" % gpid]
+        try:
+            got = self.memcache.get_many(keys)
+        except Exception:
+            return None, None
+        return got.get(keys[0]), got.get(keys[1])
+
     def set_output(self, gpid, outstr):
         self.memcache.set(key="%s.%s.output" % gpid, value=outstr, expire=360)
 
@@ -278,13 +296,15 @@ class MemcachedCache(object):
     def remove_game(self, gid):
         # pymemcache's delete_multi takes whole keys; there is no key_prefix
         per_player = ["%s.%s.%s" % (gid, p, suffix) for p in self._pids(gid)
-                      for suffix in ("have", "hist", "pos", "reach", "items", "output", "seenhash")]
+                      for suffix in ("have", "pos", "reach", "items", "output", "seenhash")]
         game_wide = ["%s.%s" % (gid, k) for k in
                      ("san", "relics", "board", "marks", "names", "pids", "strike")]
         self.memcache.delete_multi(per_player + game_wide)
+        self._registered = {k: v for k, v in self._registered.items() if k[0] != str(gid)}
 
     def clear(self):
         self.memcache.flush_all()
+        self._registered = {}
         self.set_gid(0)
 
 DEFAULT_TIME = 604800
@@ -367,22 +387,6 @@ class PythonCache(object):
     def set_gid(self, gid):
         self.gid_max = int(gid)
 
-    def set_hist(self, gid, pid, hist):
-        hist_map = self.get_hist(gid) or {}
-        hist_map[int(pid)] = hist
-        self.cache.set(key="%s.hist" % gid, value=hist_map, time=14400)
-
-    def append_hl(self, gid, pid, hl):
-        hist_map = self.get_hist(gid) or {}
-        if int(pid) not in hist_map:
-            hist_map[int(pid)] = [hl]
-        else:
-            hist_map[int(pid)].append(hl)
-        self.cache.set(key="%s.hist" % gid, value=hist_map, time=14400)
-
-    def get_hist(self, gid):
-        return self.cache.get(key="%s.hist" % gid)
-
     def get_reachable(self, gid):
         return self.cache.get(key="%s.reach" % gid) or {}
 
@@ -418,7 +422,7 @@ class PythonCache(object):
     def set_relics(self, gid, relics):
         self.cache.set(key="%s.relics" % gid, value=relics, time=14400)
 
-    def clear_items(self, gid, pid=1):
+    def clear_items(self, gid, pid):
         self.set_items(gid, pid, {})
 
     def get_pos(self, gid):
@@ -465,6 +469,9 @@ class PythonCache(object):
 
     def get_output(self, gpid):
         return self.cache.get(key="%s.%s.output" % gpid)
+
+    def get_tick_cache(self, gpid):
+        return self.get_seen_checksum(gpid), self.get_output(gpid)
 
     def set_output(self, gpid, outstr):
         self.cache.set(key="%s.%s.output" % gpid, value=outstr, time=360)

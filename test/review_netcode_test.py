@@ -195,9 +195,9 @@ class PusherBusySocket(unittest.TestCase):
         ws.PUSH_LOCK_WAIT = 0.01
         netcode.tick_output = lambda gid, pid: "0,0,0,,"
         with lock:
-            ws._push_one(gpid, Ctx())
+            ws._push_batch([gpid], Ctx())
         self.assertEqual(conn.sent, [])
-        ws._push_one(gpid, Ctx())
+        ws._push_batch([gpid], Ctx())
         self.assertEqual(conn.sent, ["tick:0,0,0,,"])
 
 

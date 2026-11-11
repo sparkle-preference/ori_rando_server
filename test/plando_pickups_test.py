@@ -127,7 +127,7 @@ class _TrackerGame(object):
 
 class NewPickupTrackerTests(unittest.TestCase):
     def tearDown(self):
-        Cache.clear_items(_TrackerKey().id())
+        Cache.clear_items(_TrackerKey().id(), 1)
 
     def test_the_tracker_shows_only_the_story_events(self):
         data, _ = tracker._get_item_tracker_items([], _TrackerGame(), 1)

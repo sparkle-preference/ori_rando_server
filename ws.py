@@ -12,6 +12,7 @@ byte for byte. An unknown kind gets "err:<kind>" and the socket stays up.
   areas:<sha256>                           -> areas:ok or areas:<file>
   ghosts:<0|1> / ghostice:<pid> / ghost:<to>:<blob>  -> ghost signaling, below
 
+A found, bingo or complete handler that raises still acks, with 500.
 The server also pushes tick:<body> frames unsolicited; the client treats them as replies.
 Each open socket pins a gunicorn thread (util.WS_CONN_LIMIT).
 """
@@ -207,11 +208,20 @@ def _pusher():
                 batch.add(_push_queue.get_nowait())
         except Empty:
             pass
-        for gpid in batch:
-            _push_one(gpid, ndb_client)
+        _push_batch(batch, ndb_client)
 
 
-def _push_one(gpid, ndb_client):
+def _push_batch(batch, ndb_client):
+    """One context for the batch, so its cache reads each Game once."""
+    try:
+        with ndb_client.context():
+            for gpid in batch:
+                _push_one(gpid)
+    except Exception:
+        log.exception("ws push batch failed")
+
+
+def _push_one(gpid):
     with _socks_lock:
         entry = _socks.get(gpid)
     if entry is None:
@@ -219,8 +229,7 @@ def _push_one(gpid, ndb_client):
     conn, send_lock = entry
     t0 = monotonic()
     try:
-        with ndb_client.context():
-            body = netcode.tick_output(*gpid)
+        body = netcode.tick_output(*gpid)
         if body is None:
             return
         # one pusher serves every socket: skip a busy one rather than stall the rest
@@ -351,6 +360,24 @@ def handle_frame(game_id, player_id, frame):
     return "err:%s" % kind, False
 
 
+def _failure_ack(frame):
+    """The ack a failed frame still owes; without one the client waits out a timeout."""
+    kind, _, body = frame.partition(":")
+    if kind == "found":
+        return "foundack:%s|500" % body.partition("|")[0]
+    if kind in ("bingo", "complete"):
+        return "%sack:500" % kind
+    return None
+
+
+def _begin_frame():
+    """Empty the socket's ndb context: it lives as long as the socket and can't nest.
+    Pending callbacks re-cache whatever a txn wrote, so they run before the clear."""
+    context = ndb.get_context()
+    context.eventloop.run()
+    context.clear_cache()
+
+
 def run_connection(conn, game_id, player_id):
     global _conns
     with _conns_lock:
@@ -371,14 +398,12 @@ def run_connection(conn, game_id, player_id):
             if isinstance(frame, bytes):
                 frame = frame.decode("utf-8", "replace")
             try:
-                # the ndb context lives as long as the socket and can't nest, so clear it
-                # per frame or it serves stale entities and grows forever
-                ndb.get_context().clear_cache()
+                _begin_frame()
                 reply, close = handle_frame(game_id, player_id, frame)
             except Exception:
                 # like an http 500: log it and keep the socket
                 log.exception("ws: frame handler failed for %s.%s", game_id, player_id)
-                continue
+                reply, close = _failure_ack(frame), False
             if reply is not None:
                 with send_lock:
                     conn.send(reply)

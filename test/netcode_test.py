@@ -35,18 +35,30 @@ class FakeMemcache(object):
 
     def __init__(self):
         self.d = {}
+        self.versions = {}
 
     def get(self, key):
         return self.d.get(key)
 
+    def gets(self, key):
+        return (self.d[key], self.versions.get(key, 0)) if key in self.d else (None, None)
+
     def set(self, key, value, expire=0, noreply=None):
         self.d[key] = value
+        self.versions[key] = self.versions.get(key, 0) + 1
         return True
+
+    def cas(self, key, value, cas, expire=0, noreply=False):
+        if key not in self.d:
+            return None
+        if self.versions.get(key, 0) != cas:
+            return False
+        return self.set(key, value)
 
     def add(self, key, value, expire=0, noreply=None):
         exists = key in self.d
         if not exists:
-            self.d[key] = value
+            self.set(key, value)
         if noreply is False:
             return not exists
         return True  # with noreply, pymemcache cannot report failure
@@ -65,6 +77,7 @@ class FakeMemcache(object):
 def fake_memcached_cache():
     mc = cache_mod.MemcachedCache.__new__(cache_mod.MemcachedCache)
     mc.memcache = FakeMemcache()
+    mc._registered = {}
     return mc
 
 
@@ -117,10 +130,6 @@ class TestSplitCache(unittest.TestCase):
         self.assertEqual(mc.get_reachable(7), {1: {"m": ["a"]}, 2: {"m": ["b"]}})
         mc.clear_reach(7, 1)
         self.assertEqual(mc.get_reachable(7)[1], {})
-        mc.set_hist(7, 1, ["h1"])
-        mc.append_hl(7, 1, "h2")
-        mc.append_hl(7, 2, "h3")
-        self.assertEqual(mc.get_hist(7), {1: ["h1", "h2"], 2: ["h3"]})
         self.assertEqual(sorted(mc._pids(7)), [1, 2])
 
     def test_the_fake_cannot_accept_what_pymemcache_rejects(self):
@@ -130,20 +139,67 @@ class TestSplitCache(unittest.TestCase):
         argument pymemcache has never had."""
         import inspect
         from pymemcache.client.base import PooledClient
-        for name in ("get", "set", "add", "delete", "get_many", "delete_multi"):
+        for name in ("get", "gets", "set", "cas", "add", "delete", "get_many", "delete_multi"):
             fake = set(inspect.signature(getattr(FakeMemcache, name)).parameters)
             real = set(inspect.signature(getattr(PooledClient, name)).parameters)
             self.assertLessEqual(fake, real,
                                  "FakeMemcache.%s accepts %s, which PooledClient does not"
                                  % (name, sorted(fake - real)))
 
+    def test_registration_is_read_once_until_the_game_is_removed(self):
+        mc = self.mc
+        reads = []
+        real_gets = mc.memcache.gets
+        mc.memcache.gets = lambda key: reads.append(key) or real_gets(key)
+        mc.set_pos(7, 1, 10, 20)
+        mc.set_pos(7, 1, 11, 21)
+        mc.set_have(7, {1: [100]})
+        self.assertEqual(reads.count("7.pids"), 1)
+        mc.remove_game(7)
+        mc.set_pos(7, 1, 12, 22)
+        self.assertEqual(mc._pids(7), [1], "a removed game never re-registered its player")
+
+    def test_players_registering_at_once_all_land(self):
+        mc = self.mc
+        real_gets = mc.memcache.gets
+
+        def beaten(key):
+            got = real_gets(key)
+            mc.memcache.gets = real_gets
+            mc.memcache.set(key, [2])  # player 2 lands between this read and its write
+            return got
+        mc.memcache.gets = beaten
+        mc.set_pos(7, 1, 10, 20)
+        self.assertEqual(sorted(mc._pids(7)), [1, 2])
+        mc.memcache.gets = beaten
+        mc.set_pos(7, 3, 10, 20)
+        self.assertEqual(sorted(mc._pids(7)), [2, 3], "the swap overwrote a write it never saw")
+
+    def test_a_registration_that_never_lands_is_not_remembered(self):
+        mc = self.mc
+        mc.memcache.add = lambda **kw: False
+        mc.set_pos(7, 1, 10, 20)
+        self.assertEqual(mc._registered, {})
+
+    def test_the_tick_cache_is_one_read(self):
+        mc = self.mc
+        mc.set_seen_checksum((7, 1), 55)
+        mc.set_output((7, 1), "0,0,0,,")
+        trips = []
+        real_many = mc.memcache.get_many
+        mc.memcache.get_many = lambda keys: trips.append(keys) or real_many(keys)
+        mc.memcache.get = lambda key: self.fail("a second trip for %s" % key)
+        self.assertEqual(mc.get_tick_cache((7, 1)), (55, "0,0,0,,"))
+        self.assertEqual(len(trips), 1)
+        self.assertEqual(mc.get_tick_cache((7, 2)), (None, None))
+
     def test_split_remove_game_cleans_per_player_keys(self):
         mc = self.mc
         mc.set_pos(7, 1, 10, 20)
-        mc.set_hist(7, 1, ["h"])
+        mc.set_have(7, {1: [100]})
         mc.remove_game(7)
         self.assertEqual(mc.get_pos(7), {})
-        self.assertEqual(mc.get_hist(7), {})
+        self.assertEqual(mc.get_have(7), {})
         self.assertEqual(mc._pids(7), [])
         leftovers = [k for k in mc.memcache.d if k.startswith("7.")]
         self.assertEqual(leftovers, [])
@@ -357,6 +413,7 @@ class TestMultiworldFoundPickup(NdbTestCase):
         for p in players.values():
             p.put = lambda *a, **k: None
         g = Game(id="77", str_mode="Multiworld", str_shared=shared or [])
+        g.players = [p.key for p in players.values()]
         g.get_players = lambda: list(players.values())
         g.player = lambda pid, create=True, delay_put=False: players[pid]
         g.hist = []
@@ -642,7 +699,6 @@ class TestApShadowPlayers(NdbTestCase):
         self._pput = Player.put
         self._gput = Game.put
         self._uget = models.User.__dict__["get"]
-        self._rebuild = Game.rebuild_hist
         self.store = {}
 
         def fake_get_by_id(pid, parent=None):
@@ -657,14 +713,12 @@ class TestApShadowPlayers(NdbTestCase):
         self.addCleanup(setattr, Game, "add_player_txn", Game.__dict__["add_player_txn"])
         Game.add_player_txn = staticmethod(lambda key, pkey: None)
         models.User.get = staticmethod(lambda: None)
-        Game.rebuild_hist = lambda g: None
 
     def tearDown(self):
         del Player.get_by_id  # restore the inherited ndb classmethod
         Player.put = self._pput
         Game.put = self._gput
         models.User.get = self._uget
-        Game.rebuild_hist = self._rebuild
         super(TestApShadowPlayers, self).tearDown()
 
     def _patch_key_get(self, game):
@@ -678,6 +732,8 @@ class TestApShadowPlayers(NdbTestCase):
             return self.store.get(k.id())
         ndb.Key.get = fake_key_get
         self.addCleanup(lambda: setattr(ndb.Key, "get", orig))
+        self.addCleanup(setattr, ndb, "get_multi", ndb.get_multi)
+        ndb.get_multi = lambda keys: [fake_key_get(k) for k in keys]
 
     def test_from_params_creates_shadows(self):
         from cache import Cache

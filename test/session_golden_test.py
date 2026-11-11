@@ -698,7 +698,9 @@ class TestApStatusCache(SessionTestCase):
         APLink.get_by_id = staticmethod(lambda gid: self.links.get(int(gid)))
         self.heals = []
         self._heal = netcode.ap_bridge.heal
+        self._ensure = netcode.ap_bridge.ensure
         netcode.ap_bridge.heal = lambda gid, active=False: self.heals.append((gid, active))
+        netcode.ap_bridge.ensure = lambda gid, link=None, wake_idle=True: self.heals.append((gid, wake_idle))
         for gid in self.GIDS:
             Cache.clear_aplink_report(gid)
 
@@ -708,6 +710,7 @@ class TestApStatusCache(SessionTestCase):
         del APLink.put
         del APLink.get_by_id
         netcode.ap_bridge.heal = self._heal
+        netcode.ap_bridge.ensure = self._ensure
         for gid in self.GIDS:
             Cache.clear_aplink_report(gid)
         super(TestApStatusCache, self).tearDown()
@@ -798,7 +801,7 @@ class TestBingoUpdate(NdbTestCase):
                          (404, "Bingo game 1251 not found"))
 
     def test_unknown_player_is_412_with_roster(self):
-        self.bingo = FakeBingo(pids=(1, 2))
+        self.refetched = FakeBingo(pids=(1, 2))
         self.assertEqual(netcode.bingo_update(1252, 9, {}),
                          (412, "player not in game! [1, 2]"))
 

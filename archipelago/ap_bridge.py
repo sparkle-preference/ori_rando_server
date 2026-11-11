@@ -51,6 +51,7 @@ LINK_RECHECK_SECS = 15.0  # re-read APLink (disable/goal from other processes)
 HANDSHAKE_TIMEOUT = 20.0
 CONNECT_TIMEOUT = 10.0   # the OS SYN ladder is ~4 min
 HEAL_TTL = 45.0          # request-path memo: non-AP games pay a dict lookup
+NO_LINK_TTL = 600.0      # the same memo for a game with no link row: only a connect makes one
 BACKOFF_MIN, BACKOFF_MAX = 1.0, 60.0
 HEALTHY_SECS = 60.0      # connected at least this long: the next retry starts at BACKOFF_MIN
 # no ticks this long: threads exit as "idle"; only tick/complete or connect restarts them
@@ -1816,7 +1817,7 @@ def ensure(game_id, link=None, wake_idle=True):
         if enabled and not wake_idle and (link.status or "") == "idle":
             _heal_memo[gid] = (monotonic() + IDLE_MEMO_TTL, "idle", worlds)
             return 0
-        _heal_memo[gid] = (monotonic() + HEAL_TTL, enabled, worlds)
+        _heal_memo[gid] = (monotonic() + (HEAL_TTL if link else NO_LINK_TTL), enabled, worlds)
         if not enabled:
             return 0
         if wake_idle:

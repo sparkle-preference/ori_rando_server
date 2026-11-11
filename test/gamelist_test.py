@@ -203,14 +203,13 @@ class GameBirthTestCase(unittest.TestCase):
         # field reads None, and None is not False, so /activeGames would show
         # every generated-but-never-played game
         params = _FakeGenParams()
-        saved = (models.Game.put, models.Game.rebuild_hist, models.Game.player)
+        saved = (models.Game.put, models.Game.player)
         try:
             models.Game.put = lambda g, *a, **k: g.key
-            models.Game.rebuild_hist = lambda g: None
             models.Game.player = lambda g, pid, **k: None
             game = models.Game.from_params(params, gid=70001)
         finally:
-            (models.Game.put, models.Game.rebuild_hist, models.Game.player) = saved
+            (models.Game.put, models.Game.player) = saved
         self.assertIs(game.has_history, False)
 
     def test_a_bingo_game_starts_empty(self):

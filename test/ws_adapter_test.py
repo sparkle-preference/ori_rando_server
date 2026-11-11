@@ -322,6 +322,17 @@ class RunConnectionTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(ws._conns, 0)
 
+    def test_a_failed_handler_still_acks(self):
+        def boom(*a, **k):
+            raise RuntimeError("kaboom")
+        for name in ("found_pickup", "bingo_update", "game_complete"):
+            self.addCleanup(setattr, netcode, name, getattr(netcode, name))
+            setattr(netcode, name, boom)
+        conn = FakeConn(["found:7|zone=x|123|SK|0", "bingo:bingoData=%7B%7D", "complete:"])
+        ws.run_connection(conn, 1, 2)
+        self.assertEqual(conn.sent, ["foundack:7|500", "bingoack:500", "completeack:500"])
+        self.assertEqual(ws._conns, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

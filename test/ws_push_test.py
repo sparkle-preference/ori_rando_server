@@ -171,20 +171,20 @@ class PushOneTests(unittest.TestCase):
         stub = netcode.tick_output = StubTickOutput("42,0,0,,,win:gg")
         conn = FakeConn()
         ws._register((3, 4), conn)
-        ws._push_one((3, 4), FakeNdbClient())
+        ws._push_batch([(3, 4)], FakeNdbClient())
         self.assertEqual(conn.sent, ["tick:42,0,0,,,win:gg"])
         self.assertEqual(stub.calls, [(3, 4)])
 
     def test_no_socket_skips_render(self):
         stub = netcode.tick_output = StubTickOutput()
-        ws._push_one((3, 4), FakeNdbClient())
+        ws._push_batch([(3, 4)], FakeNdbClient())
         self.assertEqual(stub.calls, [])
 
     def test_dead_game_sends_nothing(self):
         netcode.tick_output = lambda g, p: None
         conn = FakeConn()
         ws._register((3, 4), conn)
-        ws._push_one((3, 4), FakeNdbClient())
+        ws._push_batch([(3, 4)], FakeNdbClient())
         self.assertEqual(conn.sent, [])
 
     def test_closed_socket_is_swallowed(self):
@@ -192,14 +192,14 @@ class PushOneTests(unittest.TestCase):
         conn = FakeConn()
         conn.closed_on_send = True
         ws._register((3, 4), conn)
-        ws._push_one((3, 4), FakeNdbClient())  # must not raise
+        ws._push_batch([(3, 4)], FakeNdbClient())  # must not raise
 
     def test_render_exception_is_swallowed(self):
         def boom(g, p):
             raise RuntimeError("kaboom")
         netcode.tick_output = boom
         ws._register((3, 4), FakeConn())
-        ws._push_one((3, 4), FakeNdbClient())  # must not raise
+        ws._push_batch([(3, 4)], FakeNdbClient())  # must not raise
 
 
 class FakeGame(object):
