@@ -424,7 +424,6 @@ class TheTrackerLeavesTheTickCacheAlone(H.EmulatedCase):
             page = H.request(main.app.test_client().get, "/game/%s/players/" % self.gid)
         assert page.status_code == 200, page.status_code
 
-    @unittest.expectedFailure
     def test_the_players_page_leaves_a_multiworld_tick_alone(self):
         body = H.request(netcode.tick, self.gid, 1, H.tick_payload([]))[1]
         self.assertEqual(body, H.request(H.fresh_render, self.gid, 1))
