@@ -1898,8 +1898,8 @@ home: GinsoEscape 518 626
 	pickup: GinsoEscapeSpiderExp
 		casual Bash DoubleJump
 		standard Bash
-		expert ChargeJump Climb
-		expert ChargeJump WallJump
+		standard ChargeJump Climb
+		standard ChargeJump WallJump
 		master ChargeJump DoubleJump
 		master WallJump TripleJump UltraDefense Health=2
 		master Climb TripleJump UltraDefense Health=2
@@ -1907,8 +1907,8 @@ home: GinsoEscape 518 626
 	pickup: GinsoEscapeJumpPadExp
 		casual Bash DoubleJump
 		standard Bash
-		expert ChargeJump Climb
-		expert ChargeJump WallJump
+		standard ChargeJump Climb
+		standard ChargeJump WallJump
 		master ChargeJump DoubleJump
 		master WallJump TripleJump UltraDefense Health=4
 		master Climb TripleJump UltraDefense Health=4
@@ -1916,11 +1916,11 @@ home: GinsoEscape 518 626
 	pickup: GinsoEscapeProjectileExp
 		casual Bash DoubleJump WallJump
 		casual Bash DoubleJump ChargeJump
-		standard Bash Climb Health=3
 		standard Bash WallJump
 		standard Bash ChargeJump
-		expert ChargeJump Climb
-		expert ChargeJump WallJump
+		standard Bash Climb Health=3
+		standard ChargeJump Climb
+		standard ChargeJump WallJump
 		expert DoubleBash
 		master ChargeJump DoubleJump
 		master WallJump TripleJump UltraDefense Health=4
@@ -1929,10 +1929,11 @@ home: GinsoEscape 518 626
 	pickup: GinsoEscapeHangingExp
 		casual Bash DoubleJump WallJump
 		casual Bash DoubleJump ChargeJump Climb
-		standard Bash Climb Health=3
 		standard Bash WallJump
-		expert ChargeJump Climb
-		expert ChargeJump WallJump
+		standard Bash ChargeJump Climb
+		standard Bash Climb Health=3
+		standard ChargeJump Climb
+		standard ChargeJump WallJump
 		expert DoubleBash
 		master ChargeJump DoubleJump
 		master WallJump TripleJump UltraDefense Health=4
@@ -1941,16 +1942,20 @@ home: GinsoEscape 518 626
 	conn: GinsoEscapeComplete
 		casual Bash DoubleJump WallJump
 		casual Bash DoubleJump ChargeJump Climb
-		standard Bash Climb Health=3
 		standard Bash WallJump
-		expert ChargeJump Climb DoubleJump
-		expert ChargeJump WallJump Health=9
+		standard Bash ChargeJump Climb
+		standard Bash Climb Health=3
+		expert ChargeJump DoubleJump Climb
 		expert ChargeJump Climb Health=3
 		expert DoubleBash
+		master ChargeJump WallJump Health=9
 		master ChargeJump DoubleJump Health=7
-		master WallJump TripleJump UltraDefense Health=6
-		master Climb TripleJump UltraDefense Health=10
-		insane TripleJump UltraDefense Health=12
+		master GrenadeJump
+		master WallJump TripleJump UltraDefense Health=8
+		master Climb TripleJump UltraDefense Health=11
+		insane WallJump TripleJump UltraDefense Health=7
+		insane Climb TripleJump UltraDefense Health=10
+		insane TripleJump UltraDefense Health=13
 home: GinsoEscapeComplete 530 948
 -- this is a meta area for the end of the escape with its pickup and connection
 	pickup: GinsoEscapeExit
