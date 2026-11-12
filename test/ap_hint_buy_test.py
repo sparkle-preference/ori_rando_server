@@ -33,14 +33,15 @@ class _Player(object):
 
 
 class _Game(object):
-    players = 2
+    # Player keys, as on the model: the world count lives on the params
+    players = [_Key("7.1"), _Key("7.2")]
 
     def __init__(self, gid=7, player_users=()):
         self.key = _Key(gid)
         self._players = [_Player(u) for u in player_users]
 
     def fetch_params(self):
-        return type("P", (), {"ap_mode": True})()
+        return type("P", (), {"ap_mode": True, "players": 2})()
 
     def get_players(self):
         return list(self._players)

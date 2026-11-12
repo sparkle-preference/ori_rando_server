@@ -273,7 +273,7 @@ def ap_hints(game_id):
         return problem
     may, why = _may_buy_hints(game)
     worlds = []
-    for world in range(1, (game.players or 1) + 1):
+    for world in range(1, (game.fetch_params().players or 1) + 1):
         points, cost = APHints.price(game_id, world)
         offers = []
         for slot, entry in sorted(APHints.load(game_id, world).items()):
@@ -302,7 +302,7 @@ def ap_buy_hint(game_id, payload):
         world, slot = int(payload.get("world")), int(payload.get("slot"))
     except (TypeError, ValueError):
         return 400, "world and slot are required"
-    if not 1 <= world <= (game.players or 1):
+    if not 1 <= world <= (game.fetch_params().players or 1):
         return 400, "Game %s has no world %s" % (game_id, world)
     points, cost = APHints.price(game_id, world)
     if points < cost:

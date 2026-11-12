@@ -565,6 +565,9 @@ def ap_bingo_goal(stack):
         run_clients(c1, c2)
         j.check("the clients played without errors", not c1.errors and not c2.errors,
                 "%r %r" % (c1.errors, c2.errors))
+        hints = requests.get("%s/netcode/game/%s/ap/hints" % (stack.base_url, rolled.game_id), timeout=30)
+        j.equal("the hint panel lists both worlds",
+                [w.get("world") for w in hints.json().get("worlds", [])] if hints.ok else hints.status_code, [1, 2])
 
         deadline = time.time() + 45
         while time.time() < deadline:
