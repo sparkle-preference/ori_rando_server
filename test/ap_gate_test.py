@@ -12,6 +12,7 @@ import unittest
 import ap_models
 import main
 import models
+import util
 from seedbuilder.seedparams import SeedGenParams
 
 
@@ -24,6 +25,10 @@ class _FakeParams(object):
     ap_mode = True
     players = 2
     tracking = False
+    old = False
+
+    def predates_format_2(self):
+        return self.old
 
     def get_seed(self, pid, game_id=None, verbose_paths=False):
         return "seed!"
@@ -101,6 +106,12 @@ class ApSeedGateTestCase(unittest.TestCase):
         r = self.client.get("/generator/seed/x?game_id=99&force=1")
         self.assertEqual(r.status_code, 200)
         self.assertIn(b"seed!", r.data)
+
+    def test_a_multiworld_stored_in_format_1_is_never_served(self):
+        self.params.old = True
+        for url in ("/generator/seed/x", "/generator/seed/x?game_id=99&force=1"):
+            r = self.client.get(url)
+            self.assertEqual((r.status_code, r.get_data(as_text=True)), (410, util.OLD_MULTIWORLD))
 
     def test_short_count_arrays_read_as_unscouted(self):
         # repeated props start empty; a link that never reported must gate

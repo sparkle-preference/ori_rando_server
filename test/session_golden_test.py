@@ -24,6 +24,7 @@ import util
 from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, Player
+from seedbuilder.seedparams import Placement, SeedGenParams, Stuff
 
 
 class NdbTestCase(unittest.TestCase):
@@ -66,6 +67,11 @@ class FakeGame(object):
         self.released_pid = None
         self.sanity_checks = 0
         self._players = players or {}
+        self.bingo_data = None
+        self.params = None
+
+    def fetch_params(self):
+        return self.params
 
     def player(self, pid, *a, **k):
         # the real one answers None rather than raising for a pid it has no seat for
@@ -468,6 +474,28 @@ class TestConnect(SessionTestCase):
         self.game = FakeGame(mode=MultiplayerGameType.MULTIWORLD, players={1: p})
         netcode.connect(1246, 1, {"seed": "Sync1246.1|stuff,line2"})
         self.assertEqual(p.signals, [])
+
+    def test_a_stale_dll_is_told_to_update_on_every_bingo_or_multiworld_connect(self):
+        for gid, setup in ((1247, dict(mode=MultiplayerGameType.MULTIWORLD)), (1248, dict())):
+            p = make_player(gid, 1, can_nag=False)
+            self.game = FakeGame(players={1: p}, **setup)
+            self.game.bingo_data = None if setup else object()
+            for _ in range(2):
+                p.signals = []
+                netcode.connect(gid, 1, {"version": "0.0.1"})
+                self.assertEqual(p.signals, ["msg:@Update the randomizer to play this game: %s/dll@" % util.SITE_HOST])
+            netcode.connect(gid, 1, {"version": "%s.%s.%s" % tuple(util.VER)})
+            self.assertEqual(len(p.signals), 1, "a current dll hears nothing new")
+
+    def test_a_multiworld_stored_in_format_1_says_so_on_connect(self):
+        old = SeedGenParams(placements=[Placement(location="-2", zone="", stuff=[Stuff(code="MW", id="2,SK,0", player="1")])])
+        new = SeedGenParams(placements=[Placement(location="-2", zone="", stuff=[Stuff(code="MW", id="2,,SK,0", player="1")])])
+        for params, said in ((old, ["msg:@%s@" % util.OLD_MULTIWORLD]), (new, [])):
+            p = make_player(1249, 1)
+            self.game = FakeGame(mode=MultiplayerGameType.MULTIWORLD, players={1: p})
+            self.game.params = params
+            netcode.connect(1249, 1, {})
+            self.assertEqual(p.signals, said)
 
 
 class FakeVersionedPlayer(object):

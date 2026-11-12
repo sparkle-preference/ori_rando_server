@@ -148,6 +148,8 @@ def load_seed_from_params(params_id):
         game_id = param_val("game_id")
         if game_id and not game_id.isdigit():
             return text_resp("Bad game id %s" % game_id, 400)
+        if params.predates_format_2():
+            return text_resp(util.OLD_MULTIWORLD, 410)
         if not param_flag("force"):
             not_ready = ap_seed_not_ready(params, game_id)
             if not_ready:

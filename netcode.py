@@ -17,7 +17,7 @@ from cache import Cache
 from enums import MultiplayerGameType
 from models import Game, BingoGameData, Player, User, bingo_lock
 from pickups import Pickup
-from util import SITE_HOST, all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_LOCAL_ROOMS, AP_MIN_DLL, ARCHIPELAGO
+from util import SITE_HOST, all_locs, bfield_checksum, coord_correction_map, debug, netperf, seed_sync_id, version_at_least, version_check, AP_LOCAL_ROOMS, AP_MIN_DLL, ARCHIPELAGO, OLD_MULTIWORLD
 
 
 def _code(status):
@@ -363,10 +363,19 @@ def connect(game_id, player_id, payload):
     if game:
         p = game.player(player_id)
         vers = payload.get("version")
+        outdated = vers and not version_check(vers)
+        multiworld = game.mode == MultiplayerGameType.MULTIWORLD
+        # an old dll misreads bingo and multiworld seeds: those games nag on every connect
+        must_update = outdated and (multiworld or bool(game.bingo_data))
         nag = ("msg:@dll out of date. (%s/dll)@" % SITE_HOST
-               if p.can_nag and vers and (not version_check(vers)) else None)
+               if p.can_nag and outdated and not must_update else None)
         if Player.connect_update_txn(p.key, vers, nag):
             Cache.clear_seen_checksum(p.idpts())
+        if must_update:
+            _warn_signal(p, "msg:@Update the randomizer to play this game: %s/dll@" % SITE_HOST)
+        params = game.fetch_params() if multiworld else None
+        if params and params.predates_format_2():
+            _warn_signal(p, "msg:@%s@" % OLD_MULTIWORLD)
         uploaded_sync = seed_sync_id(payload.get("seed"))
         if uploaded_sync:
             up_gid, _, up_pid = uploaded_sync.partition(".")

@@ -21,6 +21,15 @@ import models
 from models import BingoGameData, BingoWorldBoard, Game, User
 
 from test.bingo_reroll_test import GID, _FakeGame, _FakeNdbClient, _FakeUser
+import util
+
+
+class _Params(object):
+    def __init__(self, old=False):
+        self.old = old
+
+    def predates_format_2(self):
+        return self.old
 
 
 class _SeatHarness(unittest.TestCase):
@@ -158,7 +167,7 @@ class ApBingoSeedGateTestCase(_SeatHarness):
             return self.gate_answer
         generator.ap_seed_not_ready = gate
         # the default harness game is paramless; the gate needs one to consult
-        self.ap_params = object()
+        self.ap_params = _Params()
         self.game._params = self.ap_params
 
     def tearDown(self):
@@ -196,6 +205,27 @@ class ApBingoSeedGateTestCase(_SeatHarness):
         res = self.download()
         self.assertEqual(res.status_code, 200)
         self.assertEqual(self.gate_calls, [])
+
+
+class OldMultiworldBoardTestCase(_SeatHarness):
+    """A multiworld board stored in format-1 lines hands out no seed, by download or by join."""
+
+    def setUp(self):
+        super(OldMultiworldBoardTestCase, self).setUp()
+        self.game._params = _Params(old=True)
+
+    def test_the_download_is_refused_even_when_forced(self):
+        bingo = self.make_board()
+        bingo.get_seed = lambda p: "Sync%s.%s,flags\n" % (GID, p)
+        for url in ("/bingo/game/%s/seed/2" % GID, "/bingo/game/%s/seed/2?force=1" % GID):
+            res = self.client.get(url)
+            self.assertEqual((res.status_code, res.get_data(as_text=True)), (410, util.OLD_MULTIWORLD))
+
+    def test_a_join_is_refused_before_anyone_is_seated(self):
+        bingo = self.make_board(worlds=())
+        res = self.add(1)
+        self.assertEqual((res.status_code, res.get_data(as_text=True)), (410, util.OLD_MULTIWORLD))
+        self.assertEqual((bingo.seated, bingo.puts), ([], 0))
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from models import (BingoEvent, BingoGameData, BingoTeam, BingoWorldBoard, Game,
 from pickups import AbilityCell, EnergyCell, HealthCell, Multiple, Pickup, Skill
 from seedbuilder.seedparams import bingo_worlds
 from seedbuilder.vanilla import seedtext as vanilla_seed
-from util import (INDEX_TEMPLATE, netperf, param_flag, param_int, param_val,
+from util import (INDEX_TEMPLATE, OLD_MULTIWORLD, netperf, param_flag, param_int, param_val,
                   template_vals, utcnow)
 # through the module, not by name: a test patches the owner, not each caller
 from web import generator
@@ -253,6 +253,10 @@ def _bingo_add_player_inner(game_id, player_id):
     # there is no slot here to claim -- only a removed one for the owner to undo
     if bingo.boards:
         return _bingo_reseat_world(bingo, game_id, player_id)
+    game = Game.with_id(game_id)
+    params = game.fetch_params() if game else None
+    if params and params.predates_format_2():
+        return text_resp(OLD_MULTIWORLD, 410)
     if player_id in bingo.player_nums():
         return text_resp("Player id already in use!", 409)
     player = bingo.init_player(player_id)
@@ -324,6 +328,8 @@ def bingo_download_seed(game_id, player_id):
     # snapshot, and one taken before the scouts persist keeps placeholders
     game = Game.with_id(game_id)
     params = game.fetch_params() if game else None
+    if params and params.predates_format_2():
+        return text_resp(OLD_MULTIWORLD, 410)
     if params and not param_flag("force"):
         not_ready = generator.ap_seed_not_ready(params, int(game_id))
         if not_ready:

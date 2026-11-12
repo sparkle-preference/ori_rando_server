@@ -764,6 +764,10 @@ class SeedGenParams(ndb.Model):
             return pid
         return int(self.teams_inv()[pid]) if (self.sync.teams and self.sync.cloned) else pid
 
+    def predates_format_2(self):
+        """A multiworld stored in format-1 MW lines (three fields): no client can play it now."""
+        return any(s.code == "MW" and (s.id or "").count(",") < 3 for p in self.placements for s in p.stuff)
+
     def get_seed(self, player=1, game_id=None, verbose_paths=False, include_sync = True):
         # several variations are client-only flags, so each world needs its own header
         view = self.world_params(player)

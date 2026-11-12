@@ -159,6 +159,8 @@ def json_default(o):
 def version_check(version):
     return version_at_least(version, MIN_VER)
 
+OLD_MULTIWORLD = "This multiworld game was made before 5.0 and can't be continued. Please roll a new one."
+
 # dlls before 4.9.9 ignore tick field 10 (AP items past the slot list), so AP rooms hold their own floor
 AP_MIN_DLL = [4, 9, 9]
 
