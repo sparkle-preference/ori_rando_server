@@ -5401,7 +5401,12 @@ home: MistyPreKeystone2 -983 -32
 		casual Glide Wind
 		standard Lure Bash
 		standard WallJump DoubleJump Health=4
-		standard Climb TripleJump Health=4
 		expert Climb DoubleJump Health=7
+		master Climb DoubleJump Health=4
+		master Climb DoubleJump UltraDefense Health=3
 		master TripleJump Health=4
+		master TripleJump UltraDefense Health=3
 		master DoubleJump Health=7
+		master DoubleJump UltraDefense Health=5
+		master WallJump TripleJump
+		master Climb TripleJump AirDash
