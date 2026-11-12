@@ -78,6 +78,12 @@
       "importance": "minor"
     },
     {
+      "text": "A broken RI, BM or BR in a box that fires every frame shows its error every 5 seconds instead of every frame.",
+      "category": "Plando",
+      "type": "fix",
+      "importance": "minor"
+    },
+    {
       "text": "Negative bonus items now take away bonus skills, abilities and upgrades instead of granting them.",
       "category": "Plando",
       "type": "fix",
