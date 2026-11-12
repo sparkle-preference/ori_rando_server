@@ -175,6 +175,13 @@ class MultiworldProps(unittest.TestCase):
             missed = S.joint_unreachable(worlds, modes, spawns, shared, cushion=S.CUSHION)
         self.assertEqual(missed, {}, "locations no world's walk gets to")
 
+    def test_a_forced_spot_is_filled_even_when_its_area_opens_last(self):
+        run = S.cli(["--preset", "casual", "--players", "2", "--share-mode", "multiworld", "--shared-items", "",
+                     "--keymode", "LimitKeys", "--entrance", "--start", "Grove", "--anti-bk-bias", "0.5",
+                     "--seed", "1017"])
+        self.assertEqual((bool(run.worlds()), S.stranded_forced_spots(run)), (True, {}))
+        self.assertIn("-7200024|EV|2|Misty", run.worlds()[2])
+
 
 class StorageProps(unittest.TestCase):
 
@@ -346,14 +353,6 @@ class OpenBugRepros(unittest.TestCase):
             spawn = S.spawn_zone(seed.spawn()[1])
             missed[S.repro(argv)] = S.unreachable(seed.placements, S.modes_for(run.params), spawn)
         self.assertEqual({k: v for k, v in missed.items() if v}, {})
-
-    @unittest.expectedFailure
-    def test_a_forced_spot_is_filled_even_when_its_area_opens_last(self):
-        # a generator change can un-strand this seed; check it before reading a pass as a fix
-        run = S.cli(["--preset", "casual", "--players", "2", "--share-mode", "multiworld", "--shared-items", "",
-                     "--keymode", "LimitKeys", "--entrance", "--start", "Grove", "--anti-bk-bias", "0.5",
-                     "--seed", "688"])
-        self.assertEqual((bool(run.worlds()), S.stranded_forced_spots(run)), (True, {}))
 
     @unittest.expectedFailure
     def test_misc_sharing_agrees_with_the_netcode_on_keysanity_keys(self):

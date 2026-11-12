@@ -108,9 +108,8 @@ def roll(argv, seed, tries=1, spies=None):
             continue
         if not run.worlds():
             event("a seed string failed to generate")
-        elif stranded_forced_spots(run):
-            event("a forced spot was never reached")
         else:
+            assert not stranded_forced_spots(run), "a forced spot was never reached: %r" % stranded_forced_spots(run)
             return run
     return None
 

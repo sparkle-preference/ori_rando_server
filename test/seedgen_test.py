@@ -752,6 +752,15 @@ class PlacementRecordTests(unittest.TestCase):
         return starts
 
 
+class StrandedFassTests(PlacementRecordTests):
+    """A forced item whose spot never opens is named in a warning."""
+
+    def test_the_warning_names_the_item_and_the_spot(self):
+        self._gen_with_records(["--fass", "123457:SK3"])
+        self.assertEqual(list(self.gen.gen_warnings.items()),
+                         [("WallJump was left out: its spot (123457) never opened", "warning")])
+
+
 class EarlyPlacementTests(PlacementRecordTests):
     """Early pseudo-locations: a fass at loc 30000000+N places its items in a
     round that opened before N locations were filled."""

@@ -2468,6 +2468,21 @@ class SeedGenerator:
             self.mapQueue = defaultdict(OrderedDict)
             spoilerPath = []
 
+        # the last round can open a forced spot's area after the loop stops looking
+        while len(self.forcedAssignments) > len(self.forceAssignedLocs):
+            opened = self.open_free_connections()[0]
+            for area, connection in self.connectionQueue:
+                self.areas[area].remove_connection(connection)
+            self.connectionQueue = []
+            if not (self.get_all_accessible_locations()[1] or opened):
+                break
+        for p, loc in sorted(set(self.forcedAssignments) - self.forceAssignedLocs):
+            world = "World %s: " % p if self.seed_count > 1 else ""
+            # partition, not base_of: most forced values carry no owner tag
+            item = self.forcedAssignments[(p, loc)].partition("|")[0]
+            spot = all_locations[loc].to_string() if loc in all_locations else loc
+            self.gen_warnings["%s%s was left out: its spot (%s) never opened" % (world, item, spot)] = "warning"
+
         if self.params.balanced:
             for (_, loc, assignment, _) in self.balanceList:
                 self.seeds_text[loc.player] += assignment
