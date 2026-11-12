@@ -27,6 +27,8 @@ COPY ./archipelago/oride_apworld/ ./archipelago/oride_apworld/
 
 # the runtime copy the patch-note feeds read; missing, only those two routes break
 COPY ./map/src/patchnotes.json ./map/src/patchnotes.json
+# the plando's enemy table, which /enemies.json serves to the game's box editor page
+COPY ./map/src/enemies.json ./map/src/enemies.json
 
 # the default practice segments; missing, the list is just empty
 COPY ./practice_defaults/ ./practice_defaults/

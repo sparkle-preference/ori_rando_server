@@ -78,6 +78,12 @@
       "importance": "minor"
     },
     {
+      "text": "The box editor's web page can lock boxes like the plando builder, and edit a seed's enemies.",
+      "category": "Plando",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
       "text": "A broken RI, BM or BR in a box that fires every frame shows its error every 5 seconds instead of every frame.",
       "category": "Plando",
       "type": "fix",

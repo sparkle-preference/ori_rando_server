@@ -48,6 +48,7 @@ EXPECTED = [
     "GET /discord/dev",
     "GET /dll",
     "GET /dll/beta",
+    "GET /enemies.json",
     "GET /enemies.txt",
     "GET /faq",
     "GET /flags",

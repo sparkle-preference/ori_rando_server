@@ -240,6 +240,15 @@ def enemies_txt():
         return text_resp(f.read())
 
 
+@bp.route('/enemies.json')
+def enemies_json():
+    # the plando's table, with positions; the game's box editor page reads it from 127.0.0.1, so any origin may
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "map", "src", "enemies.json"), "rb") as f:
+        response = make_resp(f.read(), mimeType="application/json")
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
+
 @bp.route('/plandos')      #AllAuthors
 def plando_index():
     out = '<html><head><title>All Plando Authors</title></head><body><h5>All Seeds</h5><ul style="list-style-type:none;padding:5px">'
