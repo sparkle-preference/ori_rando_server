@@ -8,7 +8,7 @@ class Pickup(object):
     def subclasses():
         return [Skill, Event, Teleporter, Upgrade, Experience, AbilityCell, HealthCell, EnergyCell, Keystone,
                 Mapstone, Message, Hint, Relic, Multiple, Repeatable, Warp, WarpSave, Nothing, TPWarp, MultiworldItem,
-                SlotWrite, BoxModify]
+                SlotWrite, BoxModify, BoxMove]
     @staticmethod
     def strtypes():
         return [s.code for s in Pickup.subclasses() if not s.int_id]
@@ -239,6 +239,14 @@ class BoxModify(Pickup):
     def __new__(cls, id):
         inst = super(BoxModify, cls).__new__(cls)
         inst.id, inst.bit, inst.name = id, None, "Box " + id
+        return inst
+
+class BoxMove(Pickup):
+    code = "BR"
+    int_id = False
+    def __new__(cls, id):
+        inst = super(BoxMove, cls).__new__(cls)
+        inst.id, inst.bit, inst.name = id, None, "Box move " + id
         return inst
 
 class Hint(Pickup):

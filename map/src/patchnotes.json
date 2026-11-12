@@ -66,6 +66,18 @@
       ]
     },
     {
+      "text": "RI and BM can do math, like RI|27000={20000}*2 - 1, and join comparisons with AND, OR and NOT. See [RI Format.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/RI%20Format.txt).",
+      "category": "Plando",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
+      "text": "New plando pickup BR moves a box, like BR|4=120.5,-40. {B4} reads whether box 4 is on, {B4.x} and {B4.y} where it is.",
+      "category": "Plando",
+      "type": "feature",
+      "importance": "minor"
+    },
+    {
       "text": "Negative bonus items now take away bonus skills, abilities and upgrades instead of granting them.",
       "category": "Plando",
       "type": "fix",

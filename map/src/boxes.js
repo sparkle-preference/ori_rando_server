@@ -280,10 +280,20 @@ function box_flag_choices(flags, give) {
 const box_flags_from_chips = (flags) => ({flags: flags.join(",")})
 
 const MULTI_CODES = ["MU", "RP", "RG"]
-// the client keeps box state in these slots by box number: off bits, then contact bits
-const BOX_STATE_SLOTS = [[1700, 1999], [2700, 2999]]
+// the client keeps box state in these slots by box number: off bits, contact bits, then moves
+const BOX_STATE_SLOTS = [[1700, 1999], [2700, 2999], [11000, 19999]]
+// {Bn}, {Bn.x} and {Bn.y} read box n wherever a slot read goes
+const BOX_READ = /(\{\s*[Bb])([0-9]+)((?:\.[XxYy])?\s*\})/g
+const BOX_CODES = ["BM", "BR"]
 
-// a pickup as pieces, each with the world it runs in; after a BM's box number come slots and values, never boxes
+function renumber_reads(text, map) {
+    return text.replace(BOX_READ, (m, open, n, close) => {
+        let k = map[parseInt(n, 10)]
+        return k === undefined || k === parseInt(n, 10) ? m : open + k + close
+    })
+}
+
+// a pickup as pieces, each with the world it runs in; a BM or BR names its box first, and any piece may read boxes
 function read_pickup(value, world, owner, where, spawn, box_item, problems) {
     let bar = (value || "").indexOf("|")
     if(bar < 0)
@@ -293,28 +303,29 @@ function read_pickup(value, world, owner, where, spawn, box_item, problems) {
     // seedgen sends an MU piece marked "@n" to world n and keeps the rest with the holder, owner or not
     let by_piece = code === "MU" && id.includes("@") && !box_item
     let pieces = (MULTI_CODES.includes(code) ? decompose_pickup(code, id) : [[code, id]]).map(([c, i]) => {
-        let piece = {code: c, id: i, world: by_piece ? String(world) : home}
+        let piece = {code: c, id: i, world: by_piece ? String(world) : home,
+                     reads: [...i.matchAll(BOX_READ)].map(m => parseInt(m[2], 10))}
         let slots = [...i.matchAll(/\{\s*(\d+)\s*\}/g)].map(m => parseInt(m[1], 10))
         if(c === "RI")
             slots.push(parseInt(i, 10))
         slots.filter(n => BOX_STATE_SLOTS.some(([lo, hi]) => n >= lo && n <= hi)).forEach(n =>
             problems.push(`${where}: ${c}|${i} uses slot ${n}, which holds box state by box number`))
-        if(c !== "BM")
+        if(!BOX_CODES.includes(c))
             return piece
         let at = i.indexOf("@")
         let tag = at < 0 ? "" : i.slice(at)
         if(tag && !(by_piece && /^@\d+$/.test(tag)))
-            problems.push(`${where}: BM|${i}: only a piece of a placed MU can name a world`)
+            problems.push(`${where}: ${c}|${i}: only a piece of a placed MU can name a world`)
         else if(tag)
             piece.world = tag.slice(1)
         let body = at < 0 ? i : i.slice(0, at)
         let eq = body.indexOf("=")
-        let num = (eq < 0 ? body : body.slice(0, eq)).trim()
-        if(!/^\d+$/.test(num)) {
-            problems.push(`${where}: BM|${i} names no box number`)
+        let head = /^\s*(\d+)\s*([+-]?)\s*$/.exec(eq < 0 ? body : body.slice(0, eq))
+        if(!head || (head[2] && (c !== "BR" || eq < 0))) {
+            problems.push(`${where}: ${c}|${i} names no box number`)
             return piece
         }
-        return {...piece, box: parseInt(num, 10), rest: (eq < 0 ? "" : body.slice(eq)) + tag}
+        return {...piece, box: parseInt(head[1], 10), rest: head[2] + (eq < 0 ? "" : body.slice(eq)) + tag}
     })
     if(pieces.some(p => p.box !== undefined) && home !== String(world)) {
         if(by_piece)
@@ -328,19 +339,22 @@ function read_pickup(value, world, owner, where, spawn, box_item, problems) {
 function write_pickup(value, read, renumber) {
     let changed = false
     let parts = read ? read.pieces.map(p => {
-        let n = p.box === undefined ? undefined : (renumber[p.world] || {})[p.box]
-        if(n === undefined || n === p.box)
+        let map = renumber[p.world] || {}
+        let n = p.box === undefined ? undefined : map[p.box]
+        let id = renumber_reads(n === undefined || n === p.box ? p.id : n + p.rest, map)
+        if(id === p.id)
             return [p.code, p.id]
         changed = true
-        return [p.code, n + p.rest]
+        return [p.code, id]
     }) : []
     if(!changed)
         return value
     return read.code + "|" + (read.multi ? parts.map(([c, i]) => pack_piece(c + "|" + i)).join("/") : parts[0][1])
 }
 
-// Drops deleted boxes without reordering the rest (same-tick items go in line order) and renumbers BM|n.
-// pickups: [{value, world holding it, owner it is for, spawn, where}]; a bad BM is a problem and keeps its tombstone.
+// Drops deleted boxes without reordering the rest (same-tick items go in line order) and renumbers BM|n, BR|n
+// and {Bn} reads. pickups: [{value, world holding it, owner it is for, spawn, where}]; a reference to a deleted
+// box is a problem and keeps its tombstone.
 function compact_boxes(worlds, pickups) {
     let problems = []
     let reads = pickups.map(p => read_pickup(p.value, p.world, p.owner, p.where, p.spawn, false, problems))
@@ -350,15 +364,15 @@ function compact_boxes(worlds, pickups) {
     })
     let named = {}
     ;[...reads, ...Object.values(gives).flat()].forEach(r => r && r.pieces.forEach(p => {
-        if(p.box === undefined)
-            return
         let boxes = worlds[p.world] || []
-        if(p.box >= boxes.length)
-            problems.push(`${r.where}: BM|${p.id}: world ${p.world} has no box ${p.box}`)
-        else if(is_box_gone(boxes[p.box])) {
-            problems.push(`${r.where}: BM|${p.id} names box ${p.box}, which is deleted`)
-            named[p.world + ":" + p.box] = true
-        }
+        ;(p.box === undefined ? p.reads : [p.box, ...p.reads]).forEach(n => {
+            if(n >= boxes.length)
+                problems.push(`${r.where}: ${p.code}|${p.id}: world ${p.world} has no box ${n}`)
+            else if(is_box_gone(boxes[n])) {
+                problems.push(`${r.where}: ${p.code}|${p.id} names box ${n}, which is deleted`)
+                named[p.world + ":" + n] = true
+            }
+        })
     }))
     let renumber = {}, kept = {}
     Object.keys(worlds).forEach(w => {

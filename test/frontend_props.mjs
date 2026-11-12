@@ -162,6 +162,23 @@ test("compact_boxes keeps every BM naming the box it named, and its siblings int
     }, 2000)
 })
 
+test("compact_boxes keeps every BR and {Bn} read naming the box it named", () => {
+    check([compact_case], c => {
+        let {worlds, tags, pickups} = compact_world(c)
+        fc.pre(pickups.length > 0)
+        let values = pickups.map(p => "MU|" + [pack_piece(`BR|${p.n}+=1,{B${p.n}.y}`), pack_piece(`SH|at {b${p.n}.X}`)].join("/"))
+        let out = compact_boxes(worlds, values.map((v, k) => ({value: v, world: pickups[k].w, where: "P" + k})))
+        assert.deepEqual(out.problems, [])
+        out.pickups.forEach((v, k) => {
+            let [[, moved], [, said]] = pieces_of(v)
+            let m = /^(\d+)\+=1,\{B(\d+)\.y\}$/.exec(moved), s = /^at \{b(\d+)\.X\}$/.exec(said)
+            assert.ok(m && s, v)
+            for(let n of [m[1], m[2], s[1]])
+                assert.equal(tags[out.worlds[pickups[k].w][parseInt(n, 10)]._id], pickups[k].w + ":" + pickups[k].n, v)
+        })
+    }, 1000)
+})
+
 // open bug: these pin today's output, so a fix fails them; delete them with the pipe_free filter above
 test("open bug: compact_boxes turns a pipe in a sibling's id into a slash", () => {
     let worlds = {1: ["BX|kill|0,0,1,1", "BX|tombstone|0,0,0,0", "BX|item|2,0,3,1"].map(parse_box_line)}

@@ -142,12 +142,25 @@ function pickup_name(code, id) {
             return (pid ? "Player " + pid[1] : owner) + "'s " + held;
         }
         case "BM": {
-            let [n, v] = String(id).split("=")
-            if(v === undefined)
-                return "Box " + n + ": flip"
-            if(v.startsWith("{"))
-                return "Box " + n + ": on if slot " + v.replace(/[{}]/g, "") + " is set"
-            return "Box " + n + (v === "0" ? ": off" : ": on")
+            let s = String(id), eq = s.indexOf("=")
+            if(eq < 0)
+                return "Box " + s + ": flip"
+            let n = s.slice(0, eq), v = s.slice(eq + 1).trim()
+            let slot = /^\{\s*(\d+)\s*\}$/.exec(v)
+            if(slot)
+                return "Box " + n + ": on if slot " + slot[1] + " is set"
+            if(/^[+-]?\d+$/.test(v))
+                return "Box " + n + (parseInt(v, 10) > 0 ? ": on" : ": off")
+            return "Box " + n + ": on if " + v
+        }
+        case "BR": {
+            let s = String(id), eq = s.indexOf("=")
+            if(eq < 0)
+                return "Box " + s.trim() + ": back to its spot"
+            let lhs = s.slice(0, eq).trim(), op = /[+-]$/.test(lhs) ? lhs.slice(-1) : ""
+            let xy = s.slice(eq + 1).split(",").map(v => v.trim()).join(", ")
+            let n = op ? lhs.slice(0, -1).trim() : lhs
+            return "Box " + n + (op === "" ? ": move to " + xy : op === "+" ? ": move by " + xy : ": move by -(" + xy + ")")
         }
         case "AP":
             return id;   // a foreign game's item, named by the room that sent it

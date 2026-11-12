@@ -318,6 +318,32 @@ test("box state read or written by slot is a problem", () => {
     assert.deepEqual(compact_boxes(HOLEY(), [here("RI|8000=1"), here("SH|{2000}"), here("SH|{2651}")]).problems, [])
 })
 
+test("BR names its box like BM, and {Bn} reads anywhere follow their boxes", () => {
+    let out = compact_boxes(HOLEY(), [here("BR|4=1,2"), here("BR|2+=0.5,{B4.y}"), here("RI|8000={B4}+{b2.X}"),
+                                      here("SH|box at {B4.x}"), here("MU|BR/4-=1,1/SH/{B2}"), here("BR|0")])
+    assert.deepEqual(out.problems, [])
+    assert.deepEqual(out.pickups, ["BR|2=1,2", "BR|1+=0.5,{B2.y}", "RI|8000={B2}+{b1.X}", "SH|box at {B2.x}",
+                                   "MU|BR/2-=1,1/SH/{B1}", "BR|0"])
+})
+
+test("a box's own give is renumbered for its reads too", () => {
+    let worlds = {1: world("BX|tombstone|0,0,1,1", "BX|kill|1,0,2,1", "BX|item|2,0,3,1||BR|1=0,{B1.y}+1")}
+    assert.deepEqual(lines_of(compact_boxes(worlds, [])), {1: ["BX|kill|1,0,2,1", "BX|item|2,0,3,1||BR|0=0,{B0.y}+1"]})
+})
+
+test("a read of a deleted box or past the end is a problem, and that tombstone stays", () => {
+    let out = compact_boxes(HOLEY(), [here("RI|8000={B1}", {where: "A"}), here("SH|{B9.x}", {where: "B"})])
+    assert.equal(out.problems.length, 2)
+    assert.ok(out.problems[0].startsWith("A: ") && out.problems[1].startsWith("B: "))
+    assert.equal(lines_of(out)[1][1], "BX|tombstone|0,0,0,0")
+})
+
+test("a BR without a box number, or an offset without =, is a problem", () => {
+    for(let value of ["BR|x=1,2", "BR|4+", "BM|4+=1"])
+        assert.equal(compact_boxes(HOLEY(), [here(value)]).problems.length, 1, value)
+    assert.deepEqual(compact_boxes(HOLEY(), [here("SH|{11000}")]).problems.length, 1)
+})
+
 test("compacting twice changes nothing the second time", () => {
     let first = compact_boxes(HOLEY(), [here("BM|4"), here("MU|BM/2/SK/0")])
     let second = compact_boxes(first.worlds, first.pickups.map(v => here(v)))
