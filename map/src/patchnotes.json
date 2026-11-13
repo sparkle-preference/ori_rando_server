@@ -11,16 +11,6 @@
   ],
   "pending": [
     {
-      "text": "Ginso Tree logic updates from Cleanfel!",
-      "category": "Logic",
-      "importance": "major"
-    },
-    {
-      "text": "Upper Blackroot logic updates from lifdoff!",
-      "category": "Logic",
-      "importance": "major"
-    },
-    {
       "text": "The map's In Logic filter now works on Glitched seeds.",
       "category": "Game",
       "type": "feature",
@@ -100,14 +90,52 @@
       "category": "Plando",
       "type": "fix",
       "importance": "minor"
-    },
-    {
-      "text": "Removed the NonProgressMapStones variation.",
-      "category": "Plando",
-      "importance": "minor"
     }
   ],
   "releases": [
+      {
+        "version": "4.9.14.1",
+        "date": "2026-11-12",
+        "announce": "dev",
+        "changes": [
+          {
+            "text": "Ginso Tree logic updates from Cleanfel!",
+            "category": "Logic",
+            "importance": "major"
+          },
+          {
+            "text": "Upper Blackroot logic updates from lifdoff!",
+            "category": "Logic",
+            "importance": "major"
+          },
+          {
+            "text": "Squares on a board another account has claimed can't be clicked anymore, instead of erroring.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed the Archipelago hint shop failing to load.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "A forced placement whose spot only opens at the very end no longer goes missing; one that still can't be placed shows a warning.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Removed the NonProgressMapStones variation.",
+            "category": "Plando",
+            "importance": "minor"
+          }
+        ]
+      },
       {
         "version": "4.9.14",
         "date": "2026-10-27",
