@@ -25,7 +25,7 @@ const USERBOARD_PARAMS = [
 const BINGO_CSS_VARS = `:root {
   --bingo-complete: #8e44ad; /* finished squares, subgoals, and lines */
   --bingo-marked: #34495e;   /* squares you clicked */
-  --bingo-taken: #c0392b;    /* lockout squares someone else holds */
+  --bingo-taken: #c0392b;    /* lockout squares taken by an opponent */
   --bingo-border: #000;
 }`;
 const BINGO_CLASSES = [

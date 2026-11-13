@@ -845,7 +845,7 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                 case "Saves":
                     title = "Share Saves"
                     lines = [
-                        "With Share Saves enabled, you can save at an ally's soul link by holding the Soul Link button next to it.",
+                        "With Share Saves enabled, you can save at an ally's soul link just like it was yours.",
                     ]
                     break;
                 case "Dedup":
