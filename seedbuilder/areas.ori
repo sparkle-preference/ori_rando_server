@@ -1026,6 +1026,7 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+		expert ChargeDash
 	pickup: DashAreaAbilityCell
 		casual WallJump
 		casual Climb
@@ -1036,6 +1037,7 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+		expert ChargeDash
 	pickup: DashAreaRoofExp
 		casual WallJump
 		casual Climb
@@ -1043,6 +1045,7 @@ home: BlackrootDarknessRoom 139 -247
 		casual ChargeJump DoubleJump
 		casual ChargeJump Glide
 		standard ChargeJump
+		expert ChargeDash
 		master DoubleJump
 		master Bash
 	conn: DashAreaDarknessWithOrb
@@ -1055,6 +1058,7 @@ home: BlackrootDarknessRoom 139 -247
 		standard Bash Grenade
 		standard ChargeJump
 		standard DoubleJump
+		expert Charge Dash
 	conn: DashPlantAccess
 		master Bash
 home: DashAreaDarknessWithoutOrb 255 -252
@@ -1116,6 +1120,7 @@ home: DashAreaDarknessWithOrb 250 -252
 		casual ChargeJump Glide
 		standard ChargeJump
 		expert DoubleJump
+		insane ChargeDash
 	conn: DashPlantAccess
 		casual ChargeJump Climb
 		casual ChargeJump WallJump
@@ -1173,16 +1178,14 @@ home: DashArea 271 -251
 		glitched Free
 		insane Free
 	conn: RazielNoArea
-		casual Dash WallJump
-		casual Dash ChargeJump
-		casual Dash Bash Grenade
-		casual Dash Climb DoubleJump
-		standard Bash Grenade
-		standard WallJump
-		standard ChargeJump
-		standard Climb DoubleJump
+		casual WallJump
+		casual ChargeJump
+		casual Bash Grenade
+		casual Climb DoubleJump
 		standard Climb AirDash
+		standard Climb Glide
 		expert Climb
+		expert Charge Dash
 		master DoubleJump
 home: RazielNoArea 290 -301
 	-- anchor: on the ledge right before the boulder chase
@@ -1199,7 +1202,15 @@ home: RazielNoArea 290 -301
 		expert Climb DoubleJump
 		expert ChargeJump
 		expert AirDash Climb Health=3
+		expert ChargeDash
+		master DoubleJump Health=3
 		glitched Climb
+	conn: GrenadeAreaAccess
+		casual Stomp ChargeJump
+		casual Stomp Grenade Bash
+		casual Stomp Dash
+		standard ChargeJump Climb
+		expert Stomp
 	conn: GumoHideout
 		glitched Dash WallJump
 		glitched Dash Climb DoubleJump
@@ -1211,6 +1222,7 @@ home: BlackrootGrottoConnection 376 -297
 	pickup: BlackrootTeleporterHealthCell
 	pickup: BlackrootBoulderExp
 		casual Stomp
+		standard Climb ChargeJump
 		glitched Free
 	pickup: BlackrootMap
 		casual Mapstone WallJump
@@ -1219,6 +1231,7 @@ home: BlackrootGrottoConnection 376 -297
 		casual Mapstone ChargeJump
 		standard Mapstone Climb AirDash
 		expert Mapstone Climb
+		master Mapstone DoubleJump
 	conn: SideFallCell
 		casual Stomp WallJump
 		casual Stomp Climb DoubleJump
@@ -1226,6 +1239,18 @@ home: BlackrootGrottoConnection 376 -297
 		casual Stomp ChargeJump
 		standard Stomp Climb AirDash
 		expert Stomp Climb
+		expert DoubleBash
+	conn: RazielNo
+		casual Glide
+		casual DoubleJump
+		standard Free
+	conn: GrenadeAreaAccess
+		expert Dash
+		master ChargeJump
+		master Bash
+		master WallJump
+		master Climb
+		master DoubleJump
 home: GrenadeAreaAccess 258 -383
 	-- anchor: on the raised platform between the fronkey and the spike pit
 	conn: GrenadeArea
@@ -1233,6 +1258,7 @@ home: GrenadeAreaAccess 258 -383
 		expert Bash Grenade
 		expert DoubleJump
 		master GrenadeJump
+		master Bash
 		glitched Free
 		insane Free
 	conn: LowerBlackroot
@@ -1245,11 +1271,17 @@ home: GrenadeAreaAccess 258 -383
 home: GrenadeArea 180 -377
 	-- anchor: just past the laser
 	pickup: GrenadeSkillTree
-		casual Dash WallJump
-		casual Dash Climb
-		casual Dash ChargeJump
+		casual Dash WallJump Glide
+		casual Dash Climb Glide
+		casual Dash ChargeJump Glide
+		casual Dash WallJump DoubleJump
+		casual Dash Climb DoubleJump
+		casual Dash ChargeJump DoubleJump
 		casual Dash Bash Grenade
 		standard Bash Grenade
+		standard Dash WallJump
+		standard Dash Climb
+		standard Dash ChargeJump
 		expert Dash Bash
 		expert DoubleJump WallJump
 		expert DoubleJump Climb
@@ -1259,6 +1291,7 @@ home: GrenadeArea 180 -377
 		expert DoubleBash DoubleJump
 		expert DoubleBash ChargeJump
 		master ChargeJump
+		master DoubleJump
 		insane WallJump
 	pickup: GrenadeAreaExp
 		casual Dash WallJump Glide
@@ -1266,19 +1299,24 @@ home: GrenadeArea 180 -377
 		casual Dash Bash Glide
 		casual ChargeJump DoubleJump
 		casual Bash Grenade
-		casual ChargeJump Health=3
+		standard ChargeJump Health=3
 		standard Dash DoubleJump
 		expert ChargeDash
 		expert DoubleBash WallJump
 		expert DoubleBash Climb
 		expert DoubleBash DoubleJump
 		expert DoubleBash ChargeJump
+		master DoubleJump Stomp
+		master WallJump AirDash Stomp
+		master Climb AirDash Stomp
 	pickup: GrenadeAreaAbilityCell
 		casual Dash Bash Grenade
 		casual Dash ChargeJump Grenade
 		standard Bash Grenade
 		expert ChargeDash Grenade
 		master ChargeJump Grenade
+		master DoubleJump Stomp Grenade
+		master WallJump TripleJump Glide Grenade Health=5
 home: LowerBlackroot 279 -389
 	-- anchor: just past the spike pit, directly below the ability cell
 	pickup: LowerBlackrootAbilityCell
@@ -1286,10 +1324,13 @@ home: LowerBlackroot 279 -389
 		casual Bash Grenade
 		expert DoubleJump Health=5
 		expert ChargeDash
-		master DoubleJump
+		master DoubleJump Health=3
+		master WallJump Health=5
 	pickup: LowerBlackrootLaserAbilityCell
 		casual Dash Bash Grenade
+		casual Dash DoubleJump Glide
 		standard Dash DoubleJump
+		standard Dash Glide Health=3
 		standard Dash ChargeJump Health=4
 		expert DoubleJump Glide
 		expert Bash Grenade
@@ -1302,6 +1343,7 @@ home: LowerBlackroot 279 -389
 	pickup: LowerBlackrootLaserExp
 		casual Dash WallJump
 		casual Dash Climb DoubleJump
+		casual Dash Climb Glide
 		casual Dash Bash Grenade
 		casual Dash ChargeJump
 		expert WallJump
@@ -1309,6 +1351,7 @@ home: LowerBlackroot 279 -389
 		expert Bash Grenade
 		expert ChargeJump
 		expert ChargeDash
+		master Climb
 	pickup: LowerBlackrootGrenadeThrow
 		casual WallJump Grenade
 		casual Climb Grenade
@@ -1317,13 +1360,14 @@ home: LowerBlackroot 279 -389
 		casual Bash Grenade
 		casual Glide Grenade
 		standard ChargeJump DoubleJump
+		expert DoubleBash
 		timed-level Free
 	conn: LostGrove
 		casual WallJump Grenade
 		casual Climb Grenade
 		casual ChargeJump Grenade
 		casual Bash Grenade
-		expert DoubleJump Grenade
+		expert Grenade
 home: LostGrove 414 -539
 	-- anchor: on the ground just right of the lake, door is closed
 	pickup: LostGroveLongSwim
@@ -1333,21 +1377,25 @@ home: LostGrove 414 -539
 	conn: LostGroveExit
 		casual Grenade Bash DoubleJump WallJump
 		casual Grenade Bash DoubleJump Climb
-		casual Grenade ChargeJump DoubleJump WallJump Health=3
-		casual Grenade ChargeJump DoubleJump Climb Health=3
+		standard Grenade ChargeJump DoubleJump WallJump Health=3
+		standard Grenade ChargeJump DoubleJump Climb Health=3
+		standard Grenade Bash WallJump Health=3
+		standard Grenade Bash Climb
 		expert Grenade Bash WallJump
-		expert Grenade Bash Climb
 		expert Grenade Glide ChargeJump Climb
-		expert Grenade ChargeJump WallJump Health=7
-		expert Grenade ChargeJump Climb Health=7
+		expert Grenade ChargeJump WallJump Health=5
+		expert Grenade ChargeJump Climb Health=3
+		expert Grenade Dash ChargeJump WallJump Health=5
 		expert Grenade Dash ChargeJump WallJump Health=3
 		expert Grenade Glide ChargeJump WallJump Health=3
-		expert Grenade AirDash ChargeJump Climb
+		expert Grenade ChargeDash ChargeJump Climb
 		master Grenade TripleJump WallJump
-		master Grenade TripleJump Climb
+		master Grenade TripleJump
+		master Grenade DoubleJump Stomp AirDash Climb
+		master Grenade DoubleJump Stomp ChargeDash
 		master GrenadeJump
 home: LostGroveExit 421 -499
-	-- anchor: on the lever to open the door to the teleporter
+	-- anchor: on the jumpthrough above the lever to open the door to the teleporter
 	pickup: LostGroveAbilityCell
 	pickup: LostGroveHiddenExp
 		casual WallJump
@@ -1355,10 +1403,11 @@ home: LostGroveExit 421 -499
 		casual Bash Grenade
 		casual ChargeJump
 		casual DoubleJump
+		standard Dash
 	pickup: LostGroveTeleporter
 		-- assume the blue grenade floor still exists
 		-- Either Dash or Grenade locked.
-		casual BashGrenade
+		casual Bash Grenade
 		casual Grenade WallJump DoubleJump Glide
 		casual Grenade Climb DoubleJump Glide
 		casual Dash WallJump
