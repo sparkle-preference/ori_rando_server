@@ -341,7 +341,8 @@ test("a read of a deleted box or past the end is a problem, and that tombstone s
 test("a BR without a box number, or an offset without =, is a problem", () => {
     for(let value of ["BR|x=1,2", "BR|4+", "BM|4+=1"])
         assert.equal(compact_boxes(HOLEY(), [here(value)]).problems.length, 1, value)
-    assert.deepEqual(compact_boxes(HOLEY(), [here("SH|{11000}")]).problems.length, 1)
+    assert.deepEqual(compact_boxes(HOLEY(), [here("SH|{1750}")]).problems.length, 1)
+    assert.deepEqual(compact_boxes(HOLEY(), [here("SH|{11000}")]).problems.length, 0)
 })
 
 test("compacting twice changes nothing the second time", () => {
