@@ -17,19 +17,13 @@
       "importance": "minor"
     },
     {
-      "text": "The map's In Logic filter works again on seeds with custom logic.",
+      "text": "The map's In Logic filter works on seeds with custom logic (again).",
       "category": "Game",
       "type": "fix",
       "importance": "minor"
     },
     {
       "text": "The map's In Logic filter is stricter about Forlorn's keystone door, map altars, and lure paths in Enemy Rando.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Old Split Shards seeds load again.",
       "category": "Game",
       "type": "fix",
       "importance": "minor"
