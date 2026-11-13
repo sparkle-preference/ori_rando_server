@@ -103,7 +103,7 @@
             "importance": "major"
           },
           {
-            "text": "Squares on a board another account has claimed can't be clicked anymore, instead of erroring.",
+            "text": "Clicking on squares on someone else's board no longer pops up an error telling you you can't highlight them.",
             "category": "Bingo",
             "type": "fix",
             "importance": "minor"
@@ -118,7 +118,7 @@
             ]
           },
           {
-            "text": "A forced placement whose spot only opens at the very end no longer goes missing; one that still can't be placed shows a warning.",
+            "text": "Forced placements that would happen in the very last cycle now actually happen instead of not happening.",
             "category": "Seed Generator",
             "type": "fix",
             "importance": "minor"
