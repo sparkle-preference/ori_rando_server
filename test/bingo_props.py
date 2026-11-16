@@ -109,6 +109,7 @@ def assert_board(tc, cards, opts):
             owed = with_implied(set(group.well_needs.get(frm, ())) | set(group.well_needs.get(to, ())))
             tc.assertTrue(owed <= c.needs, (frm, to, owed, c.needs))
         elif isinstance(group, DefeatGoal):
+            tc.assertEqual(bool(c.early), all(s["name"] in group.early for s in c.subgoals), c.name)
             for s in c.subgoals:
                 kind, _, zone = s["name"].partition("-")
                 spec = DEFEAT_ZONES[kind]

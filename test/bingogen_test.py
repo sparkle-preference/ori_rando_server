@@ -10,8 +10,8 @@ import random
 import unittest
 
 from bingo import (BingoGenerator, DefeatGoal, JourneyGoal, a_kind, defeat_key, defeat_zones, journey_key,
-                   journey_pairs, spawn_early_zones, DEFEAT_HELP, DEFEAT_ZONES, SPAWN_AREAS, SPAWN_CLUSTER,
-                   SPAWN_TELEPORTERS)
+                   journey_pairs, spawn_early_zones, DEFEAT_HELP, DEFEAT_ZONES, EARLY_DEFEATS, SPAWN_AREAS,
+                   SPAWN_CLUSTER, SPAWN_TELEPORTERS)
 
 # BingoEnemyKinds.Kinds and RandomizerTrackedDataManager.Zones in the client, verbatim:
 # a Defeat subgoal named outside these never completes.
@@ -260,16 +260,24 @@ class TestSpawnEarlyZones(unittest.TestCase):
     def test_an_unresolved_spawn_opens_nothing(self):
         self.assertFalse(spawn_early_zones("Random") & set(SPAWN_TELEPORTERS))
 
-    def test_the_early_cap_is_a_slice_of_the_roll_range(self):
-        # Glades rolls (8,15) easy / (10,22) normal / (16,27) hard
-        for difficulty, cap in [("easy", 9), ("normal", 13), ("hard", 20)]:
-            pool = BingoGenerator.goal_pool(random.Random(1), rando=True, difficulty=difficulty, spawn="Glades")
-            goal = {g.name: g for g in pool}["PickupsInGlades"]
+    def _assert_cap(self, spawn, zone, caps):
+        for difficulty, cap in caps:
+            pool = BingoGenerator.goal_pool(random.Random(1), rando=True, difficulty=difficulty, spawn=spawn)
+            goal = {g.name: g for g in pool}["PickupsIn" + zone]
             self.assertEqual(goal.early_max, cap, difficulty)
             goal.range_func = lambda: cap
             self.assertTrue(goal.to_card(random.Random(1)).early, difficulty)
             goal.range_func = lambda: cap + 1
             self.assertFalse(goal.to_card(random.Random(1)).early, difficulty)
+
+    def test_the_early_cap_is_a_slice_of_the_roll_range(self):
+        # Grove rolls (7,14) easy / (10,19) normal / (16,26) hard
+        self._assert_cap("Glades", "Grove", [("easy", 8), ("normal", 12), ("hard", 20)])
+        # Glades rolls (8,15) / (10,22) / (16,27)
+        self._assert_cap("Grove", "Glades", [("easy", 9), ("normal", 13), ("hard", 20)])
+
+    def test_a_glades_spawn_opens_most_of_glades(self):
+        self._assert_cap("Glades", "Glades", [("easy", 13), ("normal", 19), ("hard", 24)])
 
     def test_a_zone_spawn_does_not_open_the_others(self):
         early = {c.name for c in roll_boards("Forlorn", boards=200) if c.early and c.name.startswith("PickupsIn")}
@@ -292,6 +300,32 @@ class TestClusterEarlyGoals(unittest.TestCase):
         for name in ["Spidersack Spikes", "Blackroot Teleporter Crushers", "Grotto Vault Lasers"]:
             self.assertIn(name, cluster)
         self.assertFalse(self._early_names("Horu", "DieTo"))
+
+    def _vouched_for(self, spawn, group):
+        # an early OR card only needs one of its parts early
+        return {sg["name"] for card in roll_boards(spawn, boards=120)
+                if card.name == group and card.early and (len(card.subgoals) == 1 or card.goal_method != "or")
+                for sg in card.subgoals}
+
+    def test_only_the_opening_trees_are_early_and_only_in_the_cluster(self):
+        self.assertEqual(self._vouched_for("Glades", "VisitTree"), {"Wall Jump", "Charge Flame", "Double Jump"})
+        self.assertFalse(self._early_names("Sorrow", "VisitTree"))
+
+    def test_water_vein_is_the_early_event_location(self):
+        self.assertEqual(self._vouched_for("Swamp", "VanillaEventLocs"), {"Water Vein"})
+        self.assertFalse(self._early_names("Valley", "VanillaEventLocs"))
+
+    def test_defeat_pairs_are_early_only_in_the_cluster(self):
+        early = self._early_names("Glades", "Defeat")
+        self.assertTrue(early)
+        self.assertLessEqual(early, EARLY_DEFEATS)
+        self.assertFalse(self._early_names("Forlorn", "Defeat"))
+
+
+class TestUnspentKeystones(unittest.TestCase):
+    def test_nine_is_the_most_that_is_early(self):
+        pool = BingoGenerator.goal_pool(random.Random(1), rando=True, spawn="Glades")
+        self.assertEqual({g.name: g for g in pool}["UnspentKeystones"].early_max, 9)
 
 
 class TestJourneyInProgress(unittest.TestCase):
@@ -481,6 +515,25 @@ class TestDefeatCards(unittest.TestCase):
             card = self.kind_goal(count=5, hard=True).to_card(random.Random(seed))
             seen |= {sg["name"] for sg in card.subgoals}
         self.assertIn("Spitters-Forlorn", seen)
+
+    def test_every_early_pair_is_one_a_card_can_draw(self):
+        drawable = {defeat_key(k, z) for k, zones in defeat_zones().items() for z in zones}
+        self.assertLessEqual(EARLY_DEFEATS, drawable)
+
+    def test_a_card_is_early_when_every_pair_on_it_is(self):
+        zones = {"Slimes": ["Glades", "Grove", "Misty"]}
+        early, late = 0, 0
+        for seed in range(40):
+            card = DefeatGoal(zones, lambda: 2, early=EARLY_DEFEATS).to_card(random.Random(seed))
+            names = {sg["name"] for sg in card.subgoals}
+            self.assertEqual(card.early, names <= EARLY_DEFEATS)
+            early += card.early
+            late += not card.early
+        self.assertTrue(early and late)
+
+    def test_no_early_set_means_never_early(self):
+        for seed in range(20):
+            self.assertFalse(self.zone_goal(count=1).to_card(random.Random(seed)).early)
 
 
 class TestDefeatBudget(unittest.TestCase):

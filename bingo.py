@@ -327,6 +327,14 @@ def a_kind(kind):
 def defeat_key(kind, zone):
     return "%s-%s" % (kind, zone)
 
+# pairs a cluster spawn meets on its way out
+EARLY_DEFEATS = {defeat_key(kind, zone) for zone, kinds in [
+    ("Glades", ["Slimes", "Fronkeys", "Fish"]),
+    ("Grove", ["Slimes", "Spiders", "Fronkeys"]),
+    ("Grotto", ["Slimes", "Spiders", "Fronkeys"]),
+    ("Blackroot", ["Slimes", "Spiders", "Fronkeys"]),
+] for kind in kinds}
+
 def defeat_zones(hard = False):
     """kind -> the zones a card may send you to at this difficulty."""
     out = {}
@@ -338,11 +346,12 @@ class DefeatGoal(BingoGoal):
     """"Defeat a Slime in EACH zone", or by_zone "Defeat one of EACH kind in Misty"; always "and".
     Both shapes share one name, so budget, repeat cap and banned pairs: no two squares on a kill."""
     goalType = "multi"
-    def __init__(self, zones_by_kind, count_func, by_zone = False, max_repeats = 2, tags = ["defeat"]):
+    def __init__(self, zones_by_kind, count_func, by_zone = False, max_repeats = 2, tags = ["defeat"], early = ()):
         self.name = "Defeat"
         self.zones_by_kind = zones_by_kind
         self.count_func = count_func
         self.by_zone = by_zone
+        self.early = frozenset(early)
         self.max_repeats = max_repeats
         self.tags = set(tags)
         self.help_lines = [
@@ -378,7 +387,7 @@ class DefeatGoal(BingoGoal):
             disp_name = disp,
             help_lines = [DEFEAT_HELP[kind] for kind in sorted(kinds)] + [str(l) for l in self.help_lines],
             goal_type = "multi",
-            early = False
+            early = all(key in self.early for key, _ in subgoals)
         )
         card.goal_method = "and"
         for key, label in subgoals:
@@ -414,13 +423,15 @@ class BingoGenerator(object):
 
         def zone_pickups(zone, easy_range, params_range, hard_range):
             rf = r(easy_range, params_range, hard_range)
+            # a Glades spawn opens most of Glades
+            frac = 0.75 if zone == spawn == "Glades" else early_frac
             return IntGoal(
                 name = "PickupsIn%s" % zone,
                 disp_name = "Collect Pickups In %s" % zone,
                 help_lines = ["You can use the stats feature (alt+5 by default) to see your pickup counts by zone.", "Mapstone turn-ins are not in any zone."],
                 range_func = rf,
                 # a slice of the roll range counts as early where spawn opens the zone up
-                early_max = max(rf.min + 1, int(round(rf.min + early_frac * (rf.max - rf.min)))) if zone in early_zones else None,
+                early_max = max(rf.min + 1, int(round(rf.min + frac * (rf.max - rf.min)))) if zone in early_zones else None,
                 tags = ["pickups_in_zone"],
                 needs = [ZONE_NEEDS[zone]] if zone in ZONE_NEEDS else [],
                 caps = ZONE_CAPS.get(zone),
@@ -614,8 +625,8 @@ class BingoGenerator(object):
                 max_repeats = 2
                 ),
             JourneyGoal(journeys, tp_disp, well_needs = {goal.name: goal.needs for goal in tpGoals}),
-            DefeatGoal(defeat_zones(hard), r((1, 3), (2, 4), (3, 5), flat=True)),
-            DefeatGoal(defeat_zones(hard), r((1, 2), (2, 4), (3, 5), flat=True), by_zone = True),
+            DefeatGoal(defeat_zones(hard), r((1, 3), (2, 4), (3, 5), flat=True), early = EARLY_DEFEATS if cluster_early else ()),
+            DefeatGoal(defeat_zones(hard), r((1, 2), (2, 4), (3, 5), flat=True), by_zone = True, early = EARLY_DEFEATS if cluster_early else ()),
             GoalGroup(
                 name = "EnterArea",
                 name_func = namef("Enter", "area"),
@@ -656,7 +667,8 @@ class BingoGenerator(object):
                 name = "VisitTree",
                 name_func = namef("Visit", "tree"),
                 help_lines = ["'Tree' refers to a location where a skill is gained in the base game (Kuro's feather counts as a tree). For consistency with the randomizer, Sein / Spirit Flame does not count as a tree."],
-                goals = [BoolGoal(name, needs = ["Ginso"] if name == "Bash" else []) for name in ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Grenade", "Dash"]],
+                goals = [BoolGoal(name, needs = ["Ginso"] if name == "Bash" else [], tags = cluster_early if name in ("Wall Jump", "Charge Flame", "Double Jump") else [])
+                         for name in ["Wall Jump", "Charge Flame", "Double Jump", "Bash", "Stomp", "Glide", "Climb", "Charge Jump", "Grenade", "Dash"]],
                 methods = [
                         ("or",    r((1, 3), (1, 2), (1, 1), flat=True)), 
                         ("and",   r((1, 2), (2, 3), (3, 4), flat=True)), 
@@ -783,7 +795,7 @@ class BingoGenerator(object):
                 disp_name = "Keystones in inventory",
                 help_lines = ["Keyduping is allowed, and you can spend your keys after completing this goal."],
                 range_func = r((6, 10), (8, 20), (20, 30)),
-                early_max = 10
+                early_max = 9
             ))
         if rando:
             goals += [
@@ -823,7 +835,8 @@ class BingoGenerator(object):
                     name_func = namef("Visit", "event location"),
                     help_lines = ["The event locations are where the 3 dungeon keys and Clean Water, Wind Restored, and Warmth Returned are obtained in the base game.", 
                                  "Visiting an event location requires getting (and keeping) the pickup at that location."],
-                    goals = [BoolGoal(name, needs = EVENT_NEEDS.get(name, [])) for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
+                    goals = [BoolGoal(name, needs = EVENT_NEEDS.get(name, []), tags = cluster_early if name == "Water Vein" else [])
+                             for name in ["Water Vein", "Gumon Seal", "Sunstone", "Clean Water", "Wind Restored", "Warmth Returned"]],
                     methods = [
                         ("or",    r((1, 2), (1, 2), (1, 1))), 
                         ("and",   r((1, 1), (1, 2), (2, 3))), 
