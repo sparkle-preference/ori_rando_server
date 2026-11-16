@@ -3,7 +3,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {parse_box_line, box_line, is_box_gone, box_hidden, box_color, box_flag_ok, box_flag_warning, box_flag_choices,
     box_flags_from_chips, box_has_flag, describe_flag, flag_completions, flag_menu, new_box, BOX_COLORS, compact_boxes,
-    parse_box_paste, paste_boxes, box_search} from "../map/src/boxes.js"
+    parse_box_paste, paste_boxes, box_search, parse_shape, box_shape_kind, box_rings, box_holds, move_box,
+    box_points, set_point, nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop} from "../map/src/boxes.js"
 
 const model = (b) => ({flags: b.flags, box: b.box, color: b.color, give: b.give})
 const parsed = (line) => model(parse_box_line(line))
@@ -106,6 +107,132 @@ test("writing rounds corners and keeps the flags field whole", () => {
 test("malformed lines are skipped", () => {
     for(let line of ["BX|kill|1,2,3", "XX|kill|1,2,3,4", "BX|kill|a,b,c,d", "BX|kill"])
         assert.equal(parse_box_line(line), null, line)
+})
+
+const SHAPED = [
+    "BX|solid|convex,0,0,4,0,2,3",
+    "BX|kill|Convex,1.5,-2,4,0,2,3,2,1|ff6b6b",
+    "BX|solid,renderDepth=-99|loop,0,0,4,0,4,4,0,4,LOOP,2,2,6,2,6,6||SH|hi",
+]
+
+test("a shaped box keeps its shape as written and reads its corners from the points", () => {
+    for(let line of SHAPED) {
+        let b = parse_box_line(line)
+        assert.ok(b && !is_box_gone(b), line)
+        assert.equal(b.shape, line.split("|")[2])
+        assert.equal(box_line(b), line)
+    }
+    assert.deepEqual(SHAPED.map(l => parse_box_line(l).box), [[0, 0, 4, 3], [1.5, -2, 4, 3], [0, 0, 6, 6]])
+    assert.deepEqual(SHAPED.map(l => box_shape_kind(parse_box_line(l))), ["convex", "convex", "loop"])
+    assert.equal(parse_box_line("BX|kill|1,2,3,4").shape, "")
+    assert.equal(box_shape_kind(parse_box_line("BX|kill|1,2,3,4")), "")
+})
+
+test("a shape reads as the game reads it", () => {
+    let loops = (text) => (parse_shape(text) || {loops: null}).loops
+    assert.deepEqual(loops("convex,0,0,4,0,2,3"), [[[0, 0], [4, 0], [2, 3]]])
+    assert.deepEqual(loops("LOOP,0,0,4,0,2,3,Loop,1,1,2,1,2,2"), [[[0, 0], [4, 0], [2, 3]], [[1, 1], [2, 1], [2, 2]]])
+    // a last x without its y is dropped
+    assert.deepEqual(loops("loop, 0 ,0,4,0,+2,.5,9"), [[[0, 0], [4, 0], [2, 0.5]]])
+    assert.deepEqual(loops("previewLoop,1,2"), [[[1, 2]]])
+    assert.deepEqual(loops("previewLoop"), [[]])
+    for(let text of ["", "1,2,3,4", "convex", "convex,0,0,4,0", "loop,0,0,4,0,2,3,loop", "loop,loop,0,0,4,0,2,3", "loop,0,0,4,0,2,3,loop,1,1,2,2",
+                     "convex,0,0,4,0,2,3,loop,1,1,2,1,2,2", "loop,0,0,4,0,2,x", "loop,0,0,4,0,2,1e3", " convex,0,0,4,0,2,3", "hull,0,0,4,0,2,3"])
+        assert.equal(parse_shape(text), null, text)
+})
+
+test("a line whose shape the game can't read is skipped; a deleted shaped box is the one tombstone line", () => {
+    for(let line of ["BX|kill|convex,0,0,4,0", "BX|kill|loop,0,0,4,0,2,3,loop", "BX|kill|convex,a,b,c,d,e,f"])
+        assert.equal(parse_box_line(line), null, line)
+    let gone = parse_box_line("BX|solid,tombstone|convex,0,0,4,0,2,3|ff0000")
+    assert.equal(gone.shape, "")
+    assert.equal(box_line(gone), "BX|tombstone|0,0,0,0")
+})
+
+test("a convex box draws its hull, a loop box each loop, a rectangle its corners", () => {
+    assert.deepEqual(box_rings(parse_box_line("BX|kill|convex,0,0,4,0,2,1,4,4,0,4,2,2,2,0")), [[[0, 0], [4, 0], [4, 4], [0, 4]]])
+    assert.deepEqual(box_rings(parse_box_line(SHAPED[2])), [[[0, 0], [4, 0], [4, 4], [0, 4]], [[2, 2], [6, 2], [6, 6]]])
+    assert.deepEqual(box_rings(parse_box_line("BX|kill|1,2,3,4")), [[[1, 2], [3, 2], [3, 4], [1, 4]]])
+})
+
+test("a box holds what is inside an outline, each loop even-odd, not all of its corners' rectangle", () => {
+    let b = parse_box_line(SHAPED[2])
+    assert.deepEqual([[1, 1], [3, 2.5], [5, 4], [5, 3], [1, 5]].map(([x, y]) => box_holds(b, x, y)), [true, true, true, true, false])
+    // the middle of a star is wound twice
+    let star = parse_box_line("BX|solid|loop,0,3,4,-3,-4,1,4,1,-4,-3")
+    assert.deepEqual([[0, 0], [0, 2], [3, 0.75]].map(([x, y]) => box_holds(star, x, y)), [false, true, true])
+})
+
+test("moving a shaped box moves every point by whole hundredths and its corners with them", () => {
+    let b = parse_box_line(SHAPED[2])
+    let moved = {...b, ...move_box(b, 1.004, -2.5)}
+    assert.equal(box_line(moved), "BX|solid,renderDepth=-99|loop,1,-2.5,5,-2.5,5,1.5,1,1.5,loop,3,-0.5,7,-0.5,7,3.5||SH|hi")
+    assert.deepEqual(moved.box, [1, -2.5, 7, 3.5])
+    assert.equal(box_line({...moved, ...move_box(moved, -1, 2.5)}), SHAPED[2].replace("LOOP", "loop"))
+    assert.equal(move_box(parse_box_line("BX|solid|previewLoop,1,2"), 1, 1).shape, "previewLoop,2,3")
+    assert.deepEqual(move_box(parse_box_line("BX|kill|1,2,3,4"), 0.5, -1), {box: [1.5, 1, 3.5, 3]})
+})
+
+test("a point moves, joins and leaves a shape, and the corners follow", () => {
+    let b = parse_box_line(SHAPED[2]), edit = (b, patch) => ({...b, ...patch})
+    assert.deepEqual(box_points(b).map(p => [p.loop, p.k, p.x, p.y]).slice(3, 6), [[0, 3, 0, 4], [1, 0, 2, 2], [1, 1, 6, 2]])
+    assert.deepEqual(box_points(parse_box_line("BX|kill|1,2,3,4")), [])
+    let moved = edit(b, set_point(b, 1, 2, 8.004, 7))
+    assert.equal(moved.shape, "loop,0,0,4,0,4,4,0,4,loop,2,2,6,2,8,7")
+    assert.deepEqual(moved.box, [0, 0, 8, 7])
+    assert.equal(insert_point(b, 0, 1, 2, -1).shape, "loop,0,0,2,-1,4,0,4,4,0,4,loop,2,2,6,2,6,6")
+    assert.equal(remove_point(b, 0, 3).shape, "loop,0,0,4,0,4,4,loop,2,2,6,2,6,6")
+    // a loop at three points goes whole, and the last loop stays
+    let one = edit(b, remove_point(b, 1, 0))
+    assert.equal(one.shape, "loop,0,0,4,0,4,4,0,4")
+    assert.deepEqual(one.box, [0, 0, 4, 4])
+    assert.equal(remove_point(parse_box_line(SHAPED[0]), 0, 1), null)
+})
+
+test("a right click finds the side it is on and where its point goes", () => {
+    let side = (line, x, y) => { let s = nearest_side(parse_box_line(line), x, y); return s && [s.loop, s.k, s.x, s.y, s.d] }
+    assert.deepEqual(side(SHAPED[2], 4.5, 1), [0, 2, 4, 1, 0.5])
+    assert.deepEqual(side(SHAPED[2], 5, 1.75), [1, 1, 5, 2, 0.25])
+    // the closing side runs from the last point back to the first, so its point goes last
+    assert.deepEqual(side(SHAPED[2], -1, 2).slice(0, 2), [0, 4])
+    // a convex box's sides are its hull's, and a new point goes after every listed one
+    assert.deepEqual(side("BX|kill|convex,0,0,4,0,2,1,4,4,0,4", 4.25, 2), [0, 5, 4, 2, 0.25])
+    assert.equal(side("BX|kill|1,2,3,4", 1, 2), null)
+})
+
+test("a convex box drops the points inside its hull and keeps the ones on its outline", () => {
+    let tidy = (shape) => tidy_shape(parse_box_line("BX|kill|" + shape)).shape
+    assert.equal(tidy("convex,0,0,4,0,2,1,4,4,0,4"), "convex,0,0,4,0,4,4,0,4")
+    assert.equal(tidy("convex,0,0,4,0,4,4,0,4,2,0,3.99,2"), undefined)
+    assert.equal(tidy("convex,0,0,4,0,4,4,0,4,2,0.02"), "convex,0,0,4,0,4,4,0,4")
+    assert.equal(tidy("convex,0,0,1,1,2,2"), undefined)
+    assert.deepEqual(tidy_shape(parse_box_line(SHAPED[2])), {})
+})
+
+test("a box changes kind over the same ground", () => {
+    let as = (line, kind) => { let b = parse_box_line(line); return box_line({...b, ...reshape_box(b, kind)}) }
+    assert.equal(as("BX|kill|3,4,1,2", "convex"), "BX|kill|convex,1,2,3,2,3,4,1,4")
+    assert.equal(as("BX|kill|3,4,1,2", "loop"), "BX|kill|loop,1,2,3,2,3,4,1,4")
+    assert.equal(as("BX|kill|convex,0,0,4,0,2,1,4,4,0,4", "loop"), "BX|kill|loop,0,0,4,0,4,4,0,4")
+    assert.equal(as(SHAPED[2], "convex"), "BX|solid,renderDepth=-99|convex,0,0,4,0,6,2,6,6,0,4||SH|hi")
+    assert.equal(as(SHAPED[2], ""), "BX|solid,renderDepth=-99|0,0,6,6||SH|hi")
+    assert.equal(as(SHAPED[2], "loop"), SHAPED[2])
+    assert.equal(as("BX|kill|1,2,1,5", "convex"), "BX|kill|1,2,1,5")
+    let more = add_loop(parse_box_line(SHAPED[2]))
+    assert.equal(more.shape, "loop,0,0,4,0,4,4,0,4,loop,2,2,6,2,6,6,loop,7,0,9,0,8,2")
+    assert.deepEqual(more.box, [0, 0, 9, 6])
+    assert.deepEqual(add_loop(parse_box_line(SHAPED[0])), {})
+})
+
+test("a flag its box's shape can't honor warns", () => {
+    let warns = (flags, give, kind) => box_flag_choices(flags, give, kind).chips.filter(c => c.warn).map(c => c.label)
+    assert.deepEqual(warns("unsafe,goal,kill,unlit", "", "convex"), ["unsafe", "goal"])
+    assert.deepEqual(warns("unsafe,goal,kill,unlit", "", ""), [])
+    assert.deepEqual(warns("kill,damage=1,once,item,ritem,unlit,renderDepth=5", "", "loop"), ["kill", "damage=1", "once"])
+    assert.deepEqual(warns("item,ritem", "SK|0", "loop"), ["item", "ritem"])
+    assert.deepEqual(warns("Solid,kill,once,item", "SK|0", "loop"), ["kill"])
+    assert.match(box_flag_choices("once", "", "loop").chips[0].tip, /solid or as decoration/)
+    assert.equal(describe_flag("unlit").warn, undefined)
 })
 
 test("a flag chip with a comma or pipe is refused", () => {

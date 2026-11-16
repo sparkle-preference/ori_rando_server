@@ -3,7 +3,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import {fc, runs} from "./props_base.mjs"
-import {parse_box_line, box_line, is_box_gone, parse_box_paste, paste_boxes, compact_boxes} from "../map/src/boxes.js"
+import {parse_box_line, box_line, is_box_gone, parse_box_paste, paste_boxes, compact_boxes, parse_shape, move_box, box_holds,
+        box_points, set_point, nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop} from "../map/src/boxes.js"
 import {decompose_pickup, pack_piece} from "../map/src/multipickup.js"
 import {draft_key, read_draft, write_draft, move_draft, draft_offer, time_ago} from "../map/src/plando_draft.js"
 import {History, snap, HIST_KEYS} from "../map/src/history.js"
@@ -62,7 +63,86 @@ test("one rewrite of any line that parses is stable", () => {
     }, 2000)
 })
 
-const pasted_line = fc.oneof({weight: 4, arbitrary: box.map(box_line)}, {weight: 1, arbitrary: fc.constant("")},
+const hundredth = fc.integer({min: -500000, max: 500000}).map(n => n / 100)
+const points = fc.array(fc.tuple(hundredth, hundredth), {minLength: 3, maxLength: 6}).map(ps => ps.flat().join(","))
+const shape = fc.oneof(fc.tuple(recase("convex"), points).map(t => t.join(",")),
+                       fc.array(fc.tuple(recase("loop"), points).map(t => t.join(",")), {minLength: 1, maxLength: 3}).map(ls => ls.join(",")))
+const shaped = fc.tuple(flags, shape, color).map(([f, s, c]) => `BX|${f.replace(/\|/g, "")}|${s}|${c}`.replace(/\|+$/, ""))
+
+test("a shaped line comes back as written, its corners around every point", () => {
+    check([shaped], line => {
+        let b = parse_box_line(line)
+        assert.ok(b, line)
+        if(is_box_gone(b))
+            return
+        assert.equal(box_line(b), line)
+        let [x1, y1, x2, y2] = b.box
+        assert.ok(parse_shape(b.shape).loops.flat().every(([x, y]) => x >= x1 && x <= x2 && y >= y1 && y <= y2))
+    }, 1000)
+})
+
+test("a moved shape lands where it was dragged and comes back", () => {
+    let delta = fc.double({min: -2000, max: 2000, noNaN: true})
+    check([shaped.map(parse_box_line).filter(b => !is_box_gone(b)), delta, delta], (b, dx, dy) => {
+        let cents = (v) => Math.round(v * 100), was = parse_shape(b.shape)
+        let moved = {...b, ...move_box(b, dx, dy)}, now = parse_shape(moved.shape)
+        assert.equal(now.kind, was.kind)
+        assert.deepEqual(now.loops.map(l => l.map(p => p.map(cents))),
+                         was.loops.map(l => l.map(([x, y]) => [cents(x) + cents(dx), cents(y) + cents(dy)])))
+        assert.deepEqual(moved.box.map(cents), [cents(b.box[0]) + cents(dx), cents(b.box[1]) + cents(dy), cents(b.box[2]) + cents(dx), cents(b.box[3]) + cents(dy)])
+        assert.equal(box_line({...moved, ...move_box(moved, -dx, -dy)}), box_line({...b, ...move_box(b, 0, 0)}))
+    }, 1000)
+})
+
+// one edit a handle or a right click can make, drawn against whatever the box is by then
+const point_edit = fc.record({op: fc.constantFrom("set", "insert", "remove", "tidy", "convex", "loop", "add"),
+                              at: fc.nat(), x: hundredth, y: hundredth})
+const edit_shape = (b, {op, at, x, y}) => {
+    let points = box_points(b), p = points[at % points.length]
+    if(op === "set")
+        return set_point(b, p.loop, p.k, x, y)
+    if(op === "insert") {
+        let side = nearest_side(b, x, y)
+        return insert_point(b, side.loop, side.k, side.x, side.y)
+    }
+    if(op === "remove")
+        return remove_point(b, p.loop, p.k) || {}
+    return op === "tidy" ? tidy_shape(b) : op === "add" ? add_loop(b) : reshape_box(b, op)
+}
+
+test("a shape stays one the game reads through any edits, its corners around every point", () => {
+    check([shaped.map(parse_box_line).filter(b => !is_box_gone(b)), fc.array(point_edit, {maxLength: 12})], (b, edits) => {
+        for(let e of edits) {
+            let count = box_points(b).length, patch = edit_shape(b, e)
+            b = {...b, ...patch}
+            let read = parse_shape(b.shape)
+            assert.ok(read, b.shape)
+            if(patch.shape !== undefined)
+                assert.equal(move_box(b, 0, 0).shape, b.shape)
+            let xs = read.loops.flat().map(p => p[0]), ys = read.loops.flat().map(p => p[1])
+            assert.deepEqual(b.box, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)])
+            if(e.op === "insert")
+                assert.equal(box_points(b).length, count + 1)
+            if(e.op === "tidy" || (e.op === "convex" && patch.shape !== undefined))
+                assert.deepEqual(tidy_shape(b), {})
+        }
+        assert.equal(box_line(parse_box_line(box_line(b))), box_line(b))
+    }, 1000)
+})
+
+test("a point a right click adds lies on the outline and leaves what the box holds alone", () => {
+    check([shaped.map(parse_box_line).filter(b => !is_box_gone(b)), hundredth, hundredth, hundredth, hundredth], (b, x, y, px, py) => {
+        let side = nearest_side(b, x, y)
+        let more = {...b, ...insert_point(b, side.loop, side.k, side.x, side.y)}
+        assert.ok(nearest_side(b, side.x, side.y).d < 1e-6)
+        // off the outline by more than the rounding, a spot is in or out as before
+        fc.pre(nearest_side(b, px, py).d > 0.02)
+        assert.equal(box_holds(more, px, py), box_holds(b, px, py))
+    }, 1000)
+})
+
+const pasted_line = fc.oneof({weight: 4, arbitrary: box.map(box_line)}, {weight: 1, arbitrary: shaped},
+                             {weight: 1, arbitrary: fc.constant("")},
                              {weight: 1, arbitrary: fc.constant("   ")}, {weight: 1, arbitrary: fc.constant("Flags|ForceTrees|Seed")},
                              {weight: 1, arbitrary: fc.constant("BX|kill|1,2")}, {weight: 1, arbitrary: fc.constant(" bx|kill|1,2,3,4")})
 

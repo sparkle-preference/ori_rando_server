@@ -1,22 +1,23 @@
-// BX|flags|x1,y1,x2,y2|color|give (Boxes.txt), give keeping its own pipes, as {flags, box, color, give}.
+// BX|flags|shape|color|give (Boxes.txt), give keeping its own pipes, as {flags, box, shape, color, give}.
 // Imports only pure modules, so plain node can load it (test/box_lines_test.mjs).
 import {decompose_pickup, pack_piece} from './multipickup.js';
 
 // what the client knows, by the name before any "="; it matches them case-insensitively
 const KNOWN_FLAGS = ["goal", "kill", "solid", "item", "ritem", "tombstone", "once", "on", "damage", "unsafe",
-                     "renderdepth", "parallaxdepth"]
+                     "unlit", "renderdepth", "parallaxdepth"]
 const VALUE_FLAGS = ["on", "damage", "renderdepth", "parallaxdepth"]
 // the flags menu, presets first; goal loads and shows but isn't offered
 const BOX_PRESETS = {kill: "box kills Ori", item: "grants an item once", solid: "box with collision",
                      ritem: "grants an item repeatedly"}
 const BOX_FLAG_SUGGESTIONS = {...BOX_PRESETS, once: "box toggles off when collected", unsafe: "saves disabled inside box",
-                              "on=Tick": "grant 60 times a second while inside box", "on=Tick/60/60": "grant once a second while inside box",
+                              unlit: "box ignores lighting; stops ghosting when moved",
+                              "on=Tick":"grant 60 times a second while inside box", "on=Tick/60/60": "grant once a second while inside box",
                               "on=Frame": "grant every frame while inside box",
                               "damage=1": "box damages entities touching it", "renderDepth=-99": "draw box over terrain",
                               "parallaxDepth=10": "box scrolls like background art"}
 // a chip's tooltip; value flags build theirs from what is typed, in describe_flag
 const FLAG_TEXT = {...BOX_PRESETS, once: BOX_FLAG_SUGGESTIONS.once, unsafe: BOX_FLAG_SUGGESTIONS.unsafe,
-                   goal: "ends a practice segment"}
+                   unlit: BOX_FLAG_SUGGESTIONS.unlit, goal: "ends a practice segment"}
 const TRIGGER_TEXT = {Enter: "grants when Ori enters the box", Tick: "grants 60 times a second while Ori is inside",
                       Frame: "grants every frame while Ori is inside"}
 // the game's DamageType names, which it matches case-insensitively
@@ -38,20 +39,203 @@ const box_has_flag = (b, flag) => box_flags(b).some(f => f.toLowerCase() === fla
 const is_box_gone = (b) => box_has_flag(b, BOX_TOMBSTONE) || box_has_flag(b, "none")
 const box_hidden = (b) => b.color === "none" || b.color === "0"
 let next_box_id = 1
-// flags is the field as written, so a line comes back byte for byte
-const new_box = (flags, box) => ({_id: next_box_id++, flags: flags, box: box, color: "", give: "", locked: false})
+// flags is the field as written, so a line comes back byte for byte; shape is too, and empty for a rectangle
+const new_box = (flags, box, shape) => ({_id: next_box_id++, flags: flags, box: box, shape: shape || "", color: "", give: "", locked: false})
+
+// a plain decimal, as the game's float.TryParse with NumberStyles.Number reads one
+const numeric = (text) => /^\s*[+-]?(\d+\.?\d*|\.\d+)\s*$/.test(text)
+const hundredths = (v) => Math.round(v * 100) / 100
+
+const SHAPE_WORDS = {convex: "convex", loop: "loop", previewloop: "previewLoop"}
+
+// A shaped box's field as the game reads it, {kind, loops of [x, y]}, or null where the game throws:
+// a convex is one loop, every loop needs three points (the editor's previewLoop any), a last x alone is dropped.
+function parse_shape(text) {
+    let parts = (text || "").split(","), kind = parts[0].toLowerCase()
+    if(!SHAPE_WORDS.hasOwnProperty(kind))
+        return null
+    let loops = [[]]
+    for(let k = 1; k < parts.length;) {
+        if(kind !== "convex" && parts[k].toLowerCase() === "loop") {
+            loops.push([])
+            k++
+        } else if(k === parts.length - 1)
+            break
+        else if(!numeric(parts[k]) || !numeric(parts[k + 1]))
+            return null
+        else {
+            loops[loops.length - 1].push([Number(parts[k]), Number(parts[k + 1])])
+            k += 2
+        }
+    }
+    return kind !== "previewloop" && loops.some(l => l.length < 3) ? null : {kind: kind, loops: loops}
+}
+
+const write_shape = (read) => SHAPE_WORDS[read.kind] +
+    read.loops.map(l => l.map(p => "," + hundredths(p[0]) + "," + hundredths(p[1])).join("")).join(",loop")
+
+// the rectangle around every point, low corner first
+function shape_bounds(read) {
+    let points = read.loops.flat()
+    if(!points.length)
+        return [0, 0, 0, 0]
+    let xs = points.map(p => p[0]), ys = points.map(p => p[1])
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+}
+
+// "", "convex" or "loop"
+const box_shape_kind = (b) => b.shape ? (parse_shape(b.shape) || {kind: ""}).kind.replace("preview", "") : ""
+
+// the hull's corners in order, by Andrew's monotone chain
+function convex_hull(points) {
+    let sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    let turn = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    let half = (list) => {
+        let out = []
+        list.forEach(p => {
+            while(out.length > 1 && turn(out[out.length - 2], out[out.length - 1], p) <= 0)
+                out.pop()
+            out.push(p)
+        })
+        return out.slice(0, -1)
+    }
+    return sorted.length < 3 ? sorted : [...half(sorted), ...half(sorted.reverse())]
+}
+
+// What a box covers, as outlines of [x, y]: its corners, a convex box's hull, or each loop. A loop fills
+// even-odd and the game unions the loops, so they are drawn one apiece.
+function box_rings(b) {
+    let read = b.shape ? parse_shape(b.shape) : null
+    if(read)
+        return read.kind === "convex" ? [convex_hull(read.loops[0])] : read.loops.filter(l => l.length)
+    let [x1, y1, x2, y2] = b.box
+    return [[[x1, y1], [x2, y1], [x2, y2], [x1, y2]]]
+}
+
+const ring_holds = (ring, x, y) => ring.reduce((inside, p, k) => {
+    let q = ring[(k + 1) % ring.length]
+    return (p[1] > y) !== (q[1] > y) && x < p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]) ? !inside : inside
+}, false)
+const box_holds = (b, x, y) => box_rings(b).some(ring => ring_holds(ring, x, y))
+
+// the box (dx, dy) over: a shaped one moves every point by whole hundredths, so it keeps its shape, and its bounds follow
+function move_box(b, dx, dy) {
+    let read = b.shape ? parse_shape(b.shape) : null
+    if(!read)
+        return {box: [b.box[0] + dx, b.box[1] + dy, b.box[2] + dx, b.box[3] + dy]}
+    let [mx, my] = [hundredths(dx), hundredths(dy)]
+    let shape = write_shape({kind: read.kind, loops: read.loops.map(l => l.map(p => [p[0] + mx, p[1] + my]))})
+    return {box: shape_bounds(parse_shape(shape)), shape: shape}
+}
+
+const shape_patch = (read) => {
+    let shape = write_shape(read)
+    return {box: shape_bounds(parse_shape(shape)), shape: shape}
+}
+
+// a shaped box's own points as {loop, k, x, y}; a convex box's are the line's, in its order, not its hull's corners
+function box_points(b) {
+    let read = b.shape ? parse_shape(b.shape) : null
+    return read ? read.loops.flatMap((l, loop) => l.map((p, k) => ({loop: loop, k: k, x: p[0], y: p[1]}))) : []
+}
+
+function set_point(b, loop, k, x, y) {
+    let read = parse_shape(b.shape)
+    read.loops[loop][k] = [x, y]
+    return shape_patch(read)
+}
+
+// the spot on a segment nearest (x, y), and how far off that is
+function onto(a, b, x, y) {
+    let dx = b[0] - a[0], dy = b[1] - a[1], len = dx * dx + dy * dy
+    let t = len ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / len)) : 0
+    return {x: a[0] + t * dx, y: a[1] + t * dy, d: Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy)}
+}
+
+// The side of a shaped box nearest (x, y): the spot on it, how far off (d), and where a point there goes.
+// A convex box's sides are its hull's and its points have no order, so a new one goes last.
+function nearest_side(b, x, y) {
+    let read = b.shape ? parse_shape(b.shape) : null
+    if(!read)
+        return null
+    let convex = read.kind === "convex", best = null
+    let rings = convex ? [convex_hull(read.loops[0])] : read.loops
+    rings.forEach((ring, loop) => ring.forEach((p, k) => {
+        let spot = onto(p, ring[(k + 1) % ring.length], x, y)
+        if(!best || spot.d < best.d)
+            best = {...spot, loop: loop, k: convex ? read.loops[0].length : k + 1}
+    }))
+    return best
+}
+
+function insert_point(b, loop, k, x, y) {
+    let read = parse_shape(b.shape)
+    read.loops[loop].splice(k, 0, [x, y])
+    return shape_patch(read)
+}
+
+// a loop keeps three points: at three, removing one removes the loop, and a box's only loop stays (null)
+function remove_point(b, loop, k) {
+    let read = parse_shape(b.shape)
+    if(read.loops[loop].length > 3)
+        read.loops[loop].splice(k, 1)
+    else if(read.loops.length > 1)
+        read.loops.splice(loop, 1)
+    else
+        return null
+    return shape_patch(read)
+}
+
+// a convex box's points on its hull's outline, to a hundredth: one inside moves nothing when dragged
+function tidy_shape(b) {
+    let read = b.shape ? parse_shape(b.shape) : null
+    if(!read || read.kind !== "convex")
+        return {}
+    let hull = convex_hull(read.loops[0])
+    let kept = read.loops[0].filter(p => hull.some((a, k) => onto(a, hull[(k + 1) % hull.length], p[0], p[1]).d <= 0.01))
+    return kept.length < 3 || kept.length === read.loops[0].length ? {} : shape_patch({kind: "convex", loops: [kept]})
+}
+
+// The same ground as another kind: "" is the rectangle around it, a convex is the hull of every point,
+// a loop is the outline it had. A box too flat to have a hull stays as it is.
+function reshape_box(b, kind) {
+    if(kind === box_shape_kind(b))
+        return {}
+    if(!kind)
+        return {box: [...b.box], shape: ""}
+    let [x1, y1, x2, y2] = [Math.min(b.box[0], b.box[2]), Math.min(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2]), Math.max(b.box[1], b.box[3])]
+    let rings = b.shape ? box_rings(b) : [[[x1, y1], [x2, y1], [x2, y2], [x1, y2]]]
+    if(kind === "convex")
+        rings = [convex_hull(rings.flat())]
+    return rings.some(ring => ring.length < 3) ? {} : shape_patch({kind: kind, loops: rings})
+}
+
+// a loop box with one more loop: a small triangle past its right side, there to be dragged into place
+function add_loop(b) {
+    let read = b.shape ? parse_shape(b.shape) : null
+    if(!read || read.kind !== "loop")
+        return {}
+    let [, y1, x2] = shape_bounds(read)
+    read.loops.push([[x2 + 1, y1], [x2 + 3, y1], [x2 + 2, y1 + 2]])
+    return shape_patch(read)
+}
 
 function parse_box_line(line) {
     let f = line.trim().split("|")
     if(f[0] !== "BX" || f.length < 3)
         return null
-    let box = f[2].split(",").map(parseFloat)
-    if(box.length !== 4 || box.some(isNaN))
-        return null
-    let out = new_box(f[1], box)
+    let corners = f[2].split(","), box = corners.map(Number), shape = ""
+    if(corners.length !== 4 || !corners.every(numeric)) {
+        let read = parse_shape(f[2])
+        if(!read)
+            return null
+        box = shape_bounds(read)
+        shape = f[2]
+    }
+    let out = new_box(f[1], box, shape)
     out.color = (f[3] || "").trim()
     out.give = f.slice(4).join("|")
-    return is_box_gone(out) ? {...out, flags: BOX_TOMBSTONE, box: [0, 0, 0, 0], color: "", give: ""} : out
+    return is_box_gone(out) ? {...out, flags: BOX_TOMBSTONE, box: [0, 0, 0, 0], shape: "", color: "", give: ""} : out
 }
 
 function box_line(b) {
@@ -60,7 +244,7 @@ function box_line(b) {
     // a pipe would end the flags field
     let flags = (b.flags || "").replace(/\|/g, "")
     let color = (b.color || "").trim()
-    let fields = ["BX", flags, b.box.map(v => Math.round(v * 100) / 100).join(","), color, b.give || ""]
+    let fields = ["BX", flags, b.shape || b.box.map(hundredths).join(","), color, b.give || ""]
     while(fields.length > 3 && !fields[fields.length - 1])
         fields.pop()
     return fields.join("|")
@@ -132,8 +316,6 @@ const box_flag_ok = (flag) => !!flag.trim() && !/[,|]/.test(flag)
 
 const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 const one_of = (names, text) => names.find(n => n.toLowerCase() === text.trim().toLowerCase())
-// a plain decimal, as the game's float.TryParse with NumberStyles.Number reads one
-const numeric = (text) => /^\s*[+-]?(\d+\.?\d*|\.\d+)\s*$/.test(text)
 // a whole number that fits an int, as int.TryParse takes one
 const integer = (text) => /^\s*[+-]?\d+\s*$/.test(text) && Math.abs(Number(text)) <= 2147483647
 
@@ -261,18 +443,29 @@ function flag_menu(options, completions, whole) {
             ...options.filter((_, k) => !at.includes(k))]
 }
 
-// the chip or menu line for a flag; a kill on a box that gives something is overridden, so it warns
-function flag_option(flag, give) {
+// what only a rectangle does, and what a loop box does only when solid: it has no inside to touch
+const RECT_ONLY = {unsafe: "Only a rectangle can be unsafe", goal: "Only a rectangle can be a goal"}
+const NEEDS_INSIDE = ["kill", "damage", "once", "item", "ritem"]
+
+// The chip or menu line for a flag. It warns where the box can't honor it: a kill on a box that gives
+// something, or a flag its shape (kind, and whether it is solid) rules out.
+function flag_option(flag, give, kind, solid) {
     let {text, warn} = describe_flag(flag)
-    if(flag.toLowerCase() === "kill" && give && give !== "NO|1")
+    let key = flag.split("=")[0].trim().toLowerCase(), gives = !!give && give !== "NO|1"
+    if(key === "kill" && gives)
         [text, warn] = ["Won't kill Ori (grants an item)", true]
+    if(kind && RECT_ONLY[key])
+        [text, warn] = [RECT_ONLY[key], true]
+    else if(kind === "loop" && !solid && NEEDS_INSIDE.includes(key) && (gives || !key.endsWith("item")))
+        [text, warn] = ["A loop box only works solid or as decoration", true]
     return {label: flag, value: flag, warn: !!warn, tip: text, desc: BOX_FLAG_SUGGESTIONS[flag], color: BOX_COLORS[flag.toLowerCase()]}
 }
 const SUGGESTED = Object.keys(BOX_FLAG_SUGGESTIONS).map(flag => flag_option(flag))
 
 // the flags select's chips, in written order, and menu: the suggestions plus the box's own flags
-function box_flag_choices(flags, give) {
-    let chips = split_flags(flags || "").map(flag => flag_option(flag, give))
+function box_flag_choices(flags, give, kind) {
+    let solid = split_flags(flags || "").some(f => f.toLowerCase() === "solid")
+    let chips = split_flags(flags || "").map(flag => flag_option(flag, give, kind, solid))
     let own = chips.filter(c => !BOX_FLAG_SUGGESTIONS[c.value])
     return {chips: chips, options: own.length ? [...SUGGESTED, ...own] : SUGGESTED}
 }
@@ -399,5 +592,7 @@ function compact_boxes(worlds, pickups) {
 export {
     BOX_PRESETS, BOX_COLORS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_flags, box_has_flag, box_flags_from_chips,
     parse_box_line, box_line, box_color, box_flag_ok, box_flag_warning, describe_flag, flag_completions, flag_menu, box_flag_choices, BOXES_TXT,
-    compact_boxes, parse_box_paste, paste_boxes, box_search
+    compact_boxes, parse_box_paste, paste_boxes, box_search,
+    parse_shape, box_shape_kind, convex_hull, box_rings, box_holds, move_box,
+    box_points, set_point, nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop
 };

@@ -1,7 +1,7 @@
 import './index.css';
 import React from 'react';
 import he from 'he';
-import { ZoomControl, Map, Pane, Tooltip, TileLayer, Rectangle, Marker} from 'react-leaflet';
+import { ZoomControl, Map, Pane, Tooltip, TileLayer, Rectangle, Polygon, Marker} from 'react-leaflet';
 import Leaflet from 'leaflet';
 import {NotificationContainer, NotificationManager} from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
@@ -11,7 +11,8 @@ import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, l
         box_panel_width, remember_box_panel_width, doNetRequest, share_types_of} from './common.js';
 import {BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
         box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes,
-        box_search, parse_box_paste, paste_boxes} from './boxes.js';
+        box_search, parse_box_paste, paste_boxes, box_shape_kind, box_rings, box_holds, move_box, box_points, set_point,
+        nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop} from './boxes.js';
 import {EnemyPanel, enemy_markers, parse_rolls, rolls_line} from './enemies.js';
 import {draft_key, read_draft, write_draft, remove_draft, draft_hash, draft_offer, draft_saved, time_ago} from './plando_draft.js';
 import {download, picks_by_type, picks_by_loc, picks_by_zone, picks_by_area, zones, PickupMarkersList, get_icon, 
@@ -281,23 +282,25 @@ function get_manual_reach() {
     return {HC: HC, EC: EC, AC: AC, KS: KS, MS: MS, skills: skills, tps: tps, events: events};
 }
 
+const SHAPE_TIP = "Shape: a rectangle, the hull around its points (convex), or outlines drawn point by point (loop)"
+
 // pure: leaflet re-applies bounds and restyles a rectangle whenever it is handed props
 class BoxRect extends React.PureComponent {
     dragStart = (ev) => this.props.onDragStart(this.props.i, ev)
+    side = (ev) => this.props.onSide(this.props.i, ev)
     render() {
         let {b, i, selected, faded, dim, edit} = this.props
+        let look = {color: box_color(b), weight: selected ? 4 : 2, opacity: faded ? 0.15 : dim ? 0.3 : b.locked ? 0.5 : 1,
+                    fillOpacity: faded || dim || b.locked ? 0.05 : (edit ? 0.3 : 0.15), dashArray: dim ? "4 4" : null,
+                    onClick: this.props.onSelect, onMousedown: edit && !b.locked ? this.dragStart : undefined,
+                    onContextmenu: edit && !b.locked && b.shape ? this.side : undefined}
+        // the tooltip wants one element child; a bare string throws on open
+        // i is what BM|n names: a box's place in this world's box lines
+        let tip = <Tooltip sticky={true}><span>{box_label(b, i)}{b.locked ? " (locked)" : ""}</span></Tooltip>
+        if(b.shape)
+            return box_rings(b).map((ring, k) => <Polygon key={k} positions={ring.map(([x, y]) => [y, x])} {...look}>{tip}</Polygon>)
         let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
-        return (
-            <Rectangle bounds={bounds} color={box_color(b)} weight={selected ? 4 : 2}
-                       opacity={faded ? 0.15 : dim ? 0.3 : b.locked ? 0.5 : 1}
-                       fillOpacity={faded || dim || b.locked ? 0.05 : (edit ? 0.3 : 0.15)}
-                       dashArray={dim ? "4 4" : null}
-                       onClick={this.props.onSelect} onMousedown={edit && !b.locked ? this.dragStart : undefined}>
-                {/* the tooltip wants one element child; a bare string throws on open */}
-                {/* i is what BM|n names: a box's place in this world's box lines */}
-                <Tooltip sticky={true}><span>{box_label(b, i)}{b.locked ? " (locked)" : ""}</span></Tooltip>
-            </Rectangle>
-        )
+        return <Rectangle bounds={bounds} {...look}>{tip}</Rectangle>
     }
 }
 
@@ -416,9 +419,9 @@ class BoxRow extends React.PureComponent {
         return this.completed.options
     }
     // kept while the flags are, so the select is handed the same arrays
-    flagChoices = (flags, give) => {
-        if(!this.flags || this.flags.flags !== flags || this.flags.give !== give)
-            this.flags = {flags: flags, give: give, ...box_flag_choices(flags, give)}
+    flagChoices = (flags, give, kind) => {
+        if(!this.flags || this.flags.flags !== flags || this.flags.give !== give || this.flags.kind !== kind)
+            this.flags = {flags: flags, give: give, kind: kind, ...box_flag_choices(flags, give, kind)}
         return this.flags
     }
     // an emptied picker says NO|1, which would be written as an explicit give
@@ -426,15 +429,24 @@ class BoxRow extends React.PureComponent {
     toggleHidden = () => this.props.onUpdate(this.props.i, {color: box_hidden(this.props.b) ? "" : "none"})
     toggleLock = () => this.props.onUpdate(this.props.i, {locked: !this.props.b.locked})
     setCoord = (k) => (ev) => {
-        let box = [...this.props.b.box]
-        box[k] = parseFloat(ev.target.value) || 0
+        let b = this.props.b, v = parseFloat(ev.target.value) || 0
+        // a shaped box keeps its size: its low corner moves all of it
+        if(b.shape)
+            return this.props.onUpdate(this.props.i, move_box(b, k === 0 ? v - b.box[0] : 0, k === 1 ? v - b.box[1] : 0))
+        let box = [...b.box]
+        box[k] = v
         this.props.onUpdate(this.props.i, {box: box})
     }
     coordSetters = [this.setCoord(0), this.setCoord(1), this.setCoord(2), this.setCoord(3)]
+    setShape = (ev) => {
+        let b = this.props.b, kind = ev.target.value
+        this.props.onUpdate(this.props.i, kind === "add" ? add_loop(b) : reshape_box(b, kind))
+    }
     render() {
         let {b, i, selected} = this.props
         let hidden = box_hidden(b)
-        let flags = this.flagChoices(b.flags, b.give)
+        let kind = box_shape_kind(b)
+        let flags = this.flagChoices(b.flags, b.give, kind)
         return (
             <div className={"box-row" + (selected ? " box-row-selected" : "") + (b.locked ? " box-row-locked" : "")}
                  ref={this.ref} onClick={this.select}>
@@ -462,9 +474,15 @@ class BoxRow extends React.PureComponent {
                     )}
                 </div>
                 {[0, 1, 2, 3].map(k => (
-                    <Input key={k} type="number" step="0.01" bsSize="sm" className={"box-coord box-c" + k} disabled={b.locked}
+                    <Input key={k} type="number" step="0.01" bsSize="sm" className={"box-coord box-c" + k} disabled={b.locked || (!!b.shape && k > 1)}
                            title={["x1", "y1", "x2", "y2"][k]} value={b.box[k]} onChange={this.coordSetters[k]}/>
                 ))}
+                <select className="box-shape" disabled={b.locked} title={SHAPE_TIP} value={kind} onChange={this.setShape}>
+                    <option value="">rect</option>
+                    <option value="convex">convex</option>
+                    <option value="loop">loop</option>
+                    {kind === "loop" ? <option value="add">+ loop</option> : null}
+                </select>
                 {/* color and visibility are the same question, so they share a column */}
                 <div className="box-show">
                     <input type="color" className="box-color" title="color" list="box-color-history" value={box_color(b)} disabled={b.locked || hidden}
@@ -1530,7 +1548,7 @@ class PlandoBuiler extends React.Component {
         ev.stopPropagation()
         if(!box || box.locked)
             return
-        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, flags: BOX_TOMBSTONE, box: [0, 0, 0, 0], give: "", color: ""} : b))
+        this.setBoxes(this.curBoxes().map((b, k) => k === i ? {...b, flags: BOX_TOMBSTONE, box: [0, 0, 0, 0], shape: "", give: "", color: ""} : b))
         if(this.state.box_selected === box._id)
             this.setState({box_selected: null})
     };
@@ -1647,6 +1665,8 @@ class PlandoBuiler extends React.Component {
             let [x1, y1, x2, y2] = b.box
             if(is_box_gone(b) || p.lng < Math.min(x1, x2) || p.lng > Math.max(x1, x2) || p.lat < Math.min(y1, y2) || p.lat > Math.max(y1, y2))
                 return
+            if(b.shape && !box_holds(b, p.lng, p.lat))
+                return
             let rank = [b.locked ? 1 : 0, Math.abs(x2 - x1) * Math.abs(y2 - y1)]
             if(!best || rank[0] < best.rank[0] || (rank[0] === best.rank[0] && rank[1] < best.rank[1]))
                 best = {id: b._id, rank: rank, b: b}
@@ -1664,7 +1684,7 @@ class PlandoBuiler extends React.Component {
     startBoxDrag = (i, ev) => {
         Leaflet.DomEvent.stop(ev.originalEvent)
         this.refs.map.leafletElement.dragging.disable()
-        this.boxDrag = {index: i, from: ev.latlng, start: [...this.curBoxes()[i].box]}
+        this.boxDrag = {index: i, from: ev.latlng, start: this.curBoxes()[i]}
     };
     onMapMouseMove = (ev) => {
         if(this.mousePos)
@@ -1675,8 +1695,7 @@ class PlandoBuiler extends React.Component {
         if(!this.boxDrag)
             return
         let {index, from, start} = this.boxDrag
-        let dx = ev.latlng.lng - from.lng, dy = ev.latlng.lat - from.lat
-        this.updateBox(index, {box: [start[0] + dx, start[1] + dy, start[2] + dx, start[3] + dy]})
+        this.updateBox(index, move_box(start, ev.latlng.lng - from.lng, ev.latlng.lat - from.lat))
     };
     endBoxDrag = () => {
         if(!this.boxDrag)
@@ -1696,7 +1715,28 @@ class PlandoBuiler extends React.Component {
         else { b[0] = p.lng; b[3] = p.lat }
         this.updateBox(i, {box: b})
     };
+    // a point handle moves one point of a shaped box
+    dragPoint = (i, loop, k) => (ev) => {
+        let p = ev.target.getLatLng()
+        this.updateBox(i, set_point(this.curBoxes()[i], loop, k, p.lng, p.lat))
+    };
+    cutPoint = (i, loop, k) => () => {
+        let cut = remove_point(this.curBoxes()[i], loop, k)
+        if(cut)
+            this.updateBox(i, cut)
+    };
+    // a right click within ten pixels of a side puts a point on it
+    addPoint = (i, ev) => {
+        let map = this.refs.map.leafletElement, b = this.curBoxes()[i]
+        let pixel = Math.abs(map.containerPointToLatLng([1, 0]).lng - map.containerPointToLatLng([0, 0]).lng)
+        let side = nearest_side(b, ev.latlng.lng, ev.latlng.lat)
+        if(side && side.d <= 10 * pixel)
+            this.updateBox(i, insert_point(b, side.loop, side.k, side.x, side.y))
+    };
     tidyBox = (i) => {
+        // a shaped box's corners are its points' bounds, already whole hundredths
+        if(this.curBoxes()[i].shape)
+            return this.updateBox(i, tidy_shape(this.curBoxes()[i]))
         let b = this.curBoxes()[i].box
         let r = v => Math.round(v * 100) / 100
         this.updateBox(i, {box: [r(Math.min(b[0], b[2])), r(Math.min(b[1], b[3])), r(Math.max(b[0], b[2])), r(Math.max(b[1], b[3]))]})
@@ -1770,7 +1810,7 @@ class PlandoBuiler extends React.Component {
             let newEnt = {...prevState.entrances}
             newEnt[players+1] = {...(prevState.entrances[prevState.player] || {})}
             let newBoxes = {...prevState.boxes}
-            newBoxes[players+1] = (prevState.boxes[prevState.player] || []).map(b => ({...new_box(b.flags, [...b.box]), color: b.color, give: b.give, locked: b.locked}))
+            newBoxes[players+1] = (prevState.boxes[prevState.player] || []).map(b => ({...new_box(b.flags, [...b.box], b.shape), color: b.color, give: b.give, locked: b.locked}))
             return {placements: newPlc, player: players+1, reachable: {...DEFAULT_REACHABLE}, entrances: newEnt, boxes: newBoxes}
         }, () => this.updateReachable())
     }
@@ -1829,10 +1869,10 @@ class PlandoBuiler extends React.Component {
         const box_dim = box_hidden
         const box_rect = ({b, i}) => (
             <BoxRect key={`box-${b._id}`} b={b} i={i} selected={b._id === box_selected} faded={box_faded(b)}
-                     dim={box_dim(b)} edit={box_edit} onSelect={this.selectBoxAt} onDragStart={this.startBoxDrag}/>
+                     dim={box_dim(b)} edit={box_edit} onSelect={this.selectBoxAt} onDragStart={this.startBoxDrag} onSide={this.addPoint}/>
         )
         // handles live in the marker pane, above everything, so they stay grabbable
-        const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked && box_matches(b)).map(({b, i}) => {
+        const box_handles = all_boxes.filter(({b}) => box_edit && !b.locked && !b.shape && box_matches(b)).map(({b, i}) => {
             let selected = b._id === box_selected
             let xs = [b.box[0], b.box[2], b.box[2], b.box[0]], ys = [b.box[1], b.box[1], b.box[3], b.box[3]]
             return [0, 1, 2, 3].map(k => (
@@ -1840,6 +1880,12 @@ class PlandoBuiler extends React.Component {
                         onDrag={this.dragCorner(i, k)} onDragend={() => this.tidyBox(i)} />
             ))
         })
+        // a shaped box shows its points only while selected, or a screen of them is all handles
+        const point_handles = all_boxes.filter(({b}) => box_edit && !b.locked && b.shape && b._id === box_selected && box_matches(b)).map(({b, i}) =>
+            box_points(b).map(p => (
+                <Marker key={`box-${b._id}-${p.loop}-${p.k}`} position={[p.y, p.x]} draggable={true} icon={HANDLE_ICON_SELECTED}
+                        onDrag={this.dragPoint(i, p.loop, p.k)} onDragend={() => this.tidyBox(i)} onContextmenu={this.cutPoint(i, p.loop, p.k)}/>
+            )))
         const box_count = listed_boxes.length === all_boxes.length ? `${all_boxes.length}` : `${listed_boxes.length}/${all_boxes.length}`
         // a trailing deleted box is never written, so only one with a live box after it is a hole
         const box_holes = display_boxes && Object.keys(this.state.boxes).some(p => this.boxLines(p).some(is_box_gone))
@@ -1898,6 +1944,7 @@ class PlandoBuiler extends React.Component {
                     </Pane>
                     {all_boxes.filter(({b}) => !box_dim(b)).map(box_rect)}
                     {box_handles}
+                    {point_handles}
                 </Map>
                 <div className={"controls" + (display_boxes ? " controls-boxes" : "") + (boxes_mounted ? " controls-swapped" : "") +
                                 (this.state.box_fold ? " controls-folding" : "")} ref={el => this.controls = el}
@@ -2197,12 +2244,13 @@ class PlandoBuiler extends React.Component {
                         <datalist id="box-color-history">
                             {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                         </datalist>
-                        <div className="box-help">With Edit on map on, drag a box to move it or a corner to resize it. # is the number BM|n uses; the eye hides a box in game and the lock freezes it. Flags are explained in <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>.</div>
+                        <div className="box-help">With Edit on map on, drag a box to move it or a corner to resize it. On a convex or loop box, right-click a side to add a point, or a point to remove it. # is the number BM|n uses; the eye hides a box in game and the lock freezes it. Flags are explained in <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>.</div>
                         <div className="box-list">
                             {/* shown only once a box fits one line; the spans take the row's column widths */}
                             <div className="box-row box-list-header">
                                 <span className="box-num" title="The number BM|n uses">#</span><span className="box-del"/><span className="box-flags">flags</span>
                                 {["x1", "y1", "x2", "y2"].map((c, k) => <span key={c} className={"box-coord box-c" + k}>{c}</span>)}
+                                <span className="box-shape" title={SHAPE_TIP}>shape</span>
                                 <span className="box-show" title="Visible in game: the eye hides a box, which stays dashed here"><FaEye/></span>
                                 <span className="box-lock" title="Locked: a locked box takes no edits and can't be dragged"><FaLock/></span>
                                 <span className="box-give">gives</span>

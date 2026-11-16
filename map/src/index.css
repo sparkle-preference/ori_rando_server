@@ -483,7 +483,7 @@ body, #root {
 #box-controls .box-row {
   display: grid;
   grid-template-columns: 30px 26px minmax(0, 1fr) repeat(4, 50px) 26px 28px;
-  grid-template-areas: "num del flags c0 c1 c2 c3 show lock" ". . give give give give give give give";
+  grid-template-areas: "num del flags c0 c1 c2 c3 show lock" "shape shape give give give give give give give";
   gap: 3px;
   align-items: center;
   padding: 4px 6px;
@@ -497,6 +497,7 @@ body, #root {
 #box-controls .box-c1 { grid-area: c1; }
 #box-controls .box-c2 { grid-area: c2; }
 #box-controls .box-c3 { grid-area: c3; }
+#box-controls .box-shape { grid-area: shape; }
 #box-controls .box-show { grid-area: show; }
 #box-controls .box-lock { grid-area: lock; }
 #box-controls .box-give { grid-area: give; min-width: 0; }
@@ -539,8 +540,8 @@ body, #root {
 
 @container boxes (min-width: 760px) {
   #box-controls .box-row {
-    grid-template-columns: 30px 26px minmax(0, 1fr) repeat(4, 50px) 26px 28px minmax(0, 1fr);
-    grid-template-areas: "num del flags c0 c1 c2 c3 show lock give";
+    grid-template-columns: 30px 26px minmax(0, 1fr) repeat(4, 50px) 54px 26px 28px minmax(0, 1fr);
+    grid-template-areas: "num del flags c0 c1 c2 c3 shape show lock give";
   }
 
   #box-controls .box-row.box-list-header {
@@ -566,6 +567,7 @@ body, #root {
     padding-left: 5px;
   }
 
+  #box-controls .box-list-header .box-shape,
   #box-controls .box-list-header .box-show,
   #box-controls .box-list-header .box-lock {
     text-align: center;
@@ -583,6 +585,33 @@ body, #root {
 #box-controls .box-coord::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* a native select down to its word, which is all the room it has */
+#box-controls select.box-shape {
+  min-width: 0;
+  height: 22px;
+  padding: 0 2px;
+  border: 1px solid #b0b0b0;
+  border-radius: 3px;
+  background: transparent;
+  color: #f0f0f0;
+  font-size: 12px;
+  text-align: center;
+  text-align-last: center;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+#box-controls select.box-shape:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#box-controls select.box-shape option {
+  background: #222;
+  color: #f0f0f0;
 }
 
 /* color over visibility, the same question in one column */
