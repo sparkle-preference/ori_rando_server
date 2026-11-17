@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ori seeds are rolled on **[orirando.com](https://orirando.com/)**, the Ori 1 solo randomizer site.
+Ori seeds are rolled on **[bf.orirando.com](https://bf.orirando.com/)**, the Ori 1 solo randomizer site.
 When you tick the Archipelago option there, the generator reserves some of the seed's pickup locations 
 for Archipelago and hands the items that were in them to the Archipelago item pool. It then creates the
 yaml you feed to Archipelago's generator, covering every Ori world. You never write that yaml by hand,
@@ -15,14 +15,14 @@ up-to-date randomizer install and an internet connection.
 ## What you need
 
 * **Ori and the Blind Forest: Definitive Edition** (steam or GoG version), plus the Ori randomizer mod:
-  * Copy the [randomizer dll](https://orirando.com/dll) into your `Ori DE/oriDE_Data/Managed` folder.
-  * Step-by-step instructions are in the [install FAQ](https://orirando.com/faq?g=install).
-  * Optional but recommended: the [item tracker](https://orirando.com/tracker).
+  * Copy the [randomizer dll](https://bf.orirando.com/dll) into your `Ori DE/oriDE_Data/Managed` folder.
+  * Step-by-step instructions are in the [install FAQ](https://bf.orirando.com/faq?g=install).
+  * Optional but recommended: the [item tracker](https://bf.orirando.com/tracker).
 * **Archipelago 0.6.7 or newer**, from the
   [Archipelago releases page](https://github.com/ArchipelagoMW/Archipelago/releases/latest).
 * **`oride.apworld`**, the file this guide comes with. The current build is always a download away on the seed
   page — see step 1.
-* Join the [Ori Discord](https://orirando.com/discord) — it is the best place to get help.
+* Join the [Ori Discord](https://bf.orirando.com/discord) — it is the best place to get help.
 
 Every Ori player needs the game and the randomizer dll. Only the person generating the Archipelago session
 needs Archipelago itself and this apworld.
@@ -31,7 +31,7 @@ needs Archipelago itself and this apworld.
 
 Get `oride.apworld` from the **Get apworld** button in the *Archipelago Setup* panel on the seed page — that is
 always the build the site is currently serving. (Direct link, if you have no seed yet:
-[orirando.com/generator/apworld](https://orirando.com/generator/apworld).)
+[bf.orirando.com/generator/apworld](https://bf.orirando.com/generator/apworld).)
 
 Put it in your Archipelago install's **`custom_worlds`** folder (next to `ArchipelagoLauncher.exe`; create the
 folder if it is not there). Overwrite the old version when you update, and do not change the file name.
@@ -42,9 +42,9 @@ You can check it took by launching `ArchipelagoLauncher` and generating; the gen
 While Ori DE Rando is in closed testing, the apworld build and the seeds have to match. If they do not, the
 generator will tell you which side to update — see [Troubleshooting](#troubleshooting).
 
-## 2. Roll the Ori seed(s) on orirando.com
+## 2. Roll the Ori seed(s) on bf.orirando.com
 
-1. Go to [orirando.com](https://orirando.com/).
+1. Go to [bf.orirando.com](https://bf.orirando.com/).
 2. Pick your logic paths, key mode, goal and so on as you would for any Ori seed — anything except the Bingo
    goal, which Archipelago can't use.
 3. On the **Multiplayer Options** tab, set **Players** to the number of Ori players. 1 is fine — one Ori world
@@ -126,12 +126,12 @@ the yaml are from different generations of the item tables. The message says whi
 re-download `oride.apworld` from the seed page's **Get apworld** button, or re-download the yaml with the
 **Get YAMLs** button (a fresh yaml for the same seed is fine).
 
-**"empty orirando data"** — the yaml did not come from orirando.com's Archipelago mode, or the `orirando`
+**"empty orirando data"** — the yaml did not come from bf.orirando.com's Archipelago mode, or the `orirando`
 block was emptied. Download it again from the seed page.
 
 **"exported item count X != reserved location count Y"** — Corrupted Yaml. Redownload and try again.
 
-**The room panel is stuck on "reconnecting"** — orirando.com cannot reach the room. The error line under the
+**The room panel is stuck on "reconnecting"** — bf.orirando.com cannot reach the room. The error line under the
 status usually says exactly why. Use an archipelago.gg room if you are not sure.
 
-**Some other issue** - come tell us about it in [our discord](https://orirando.com/discord).
+**Some other issue** - come tell us about it in [our discord](https://bf.orirando.com/discord).

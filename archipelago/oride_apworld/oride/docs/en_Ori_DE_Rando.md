@@ -1,12 +1,12 @@
 # Ori DE Rando
 
 Ori and the Blind Forest: Definitive Edition, as randomized by
-**[orirando.com](https://orirando.com/)** — the long-running community randomizer, not a new one written for
+**[bf.orirando.com](https://bf.orirando.com/)** — the long-running community randomizer, not a new one written for
 Archipelago.
 
 ## Where is the options page?
 
-There isn't one here. Every setting lives in the seed you roll on [orirando.com](https://orirando.com/):
+There isn't one here. Every setting lives in the seed you roll on [bf.orirando.com](https://bf.orirando.com/):
 logic paths, key mode, goal mode, world size, variations, and which item categories go to Archipelago. The
 site emits a finished yaml per Ori world, and that yaml is what you put in `Players`. Writing one by hand does
 not work — it carries the whole seed, not a set of preferences.
@@ -72,7 +72,7 @@ It arrives in game the moment it is sent, with the usual Ori multiworld pickup m
 becomes usable immediately, a cell raises your maximum, a teleporter unlocks. There is nothing to collect and
 no client window to watch.
 
-Ori players do not run an Archipelago client at all. orirando.com's server holds the connection to the room
+Ori players do not run an Archipelago client at all. bf.orirando.com's server holds the connection to the room
 for every Ori world in the game, so items flow both ways as long as the room is up and reachable; whoever
 rolled the seed points the game at the room once, from the seed page.
 

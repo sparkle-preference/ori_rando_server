@@ -62,7 +62,7 @@ class OriDELocation(Location):
 class OriDEWeb(WebWorld):
     theme = "grass"
     # options live in the orirando.com seed; the yaml is downloaded, never hand-written
-    options_page = "https://orirando.com/"
+    options_page = "https://bf.orirando.com/"
     game_info_languages = ["en"]  # -> docs/en_Ori_DE_Rando.md
     tutorials = [Tutorial(
         "Multiworld Setup Guide",
@@ -91,7 +91,7 @@ class OriDEWorld(World):
         if not cfg:
             raise Exception(
                 "%s (%s): empty orirando data. Roll a seed with the Archipelago "
-                "game mode on orirando.com and use the yaml it emits." %
+                "game mode on bf.orirando.com and use the yaml it emits." %
                 (self.player_name, GAME_NAME))
         # ahead of every table read: a yaml from a newer server otherwise
         # dies as a KeyError on a name this build never heard of

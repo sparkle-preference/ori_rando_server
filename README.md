@@ -1,10 +1,10 @@
 # Ori DE Randomizer Server
 
-Repository for the [Ori DE Randomizer](https://orirando.com) server.
+Repository for the [Ori DE Randomizer](https://bf.orirando.com) server.
 
 ## Getting Started
 
-This repository contains the UI and backend code for the Ori DE randomizer website. New players: check out the [quickstart page](https://orirando.com/quickstart). Help for the various seed generation settings can be found on by mousing over the relevant UI elements.
+This repository contains the UI and backend code for the Ori DE randomizer website. New players: check out the [quickstart page](https://bf.orirando.com/quickstart). Help for the various seed generation settings can be found on by mousing over the relevant UI elements.
 
 ## Key Features
 * Seed Generator - Generates randomizer.bfr seeds
@@ -48,7 +48,7 @@ python -m unittest discover -s test -p "*_test.py"
 ```
 These run on the host rather than in Docker, and need Python 3.12+ - older versions can't parse `main.py`.
 
-For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://orirando.com/discord).
+For additional help, you can contact me (Eiko) in the [Ori Randomizer Discord](https://bf.orirando.com/discord).
 
 
 ## Related Projects 
