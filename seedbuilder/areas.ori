@@ -1243,7 +1243,7 @@ home: BlackrootGrottoConnection 376 -297
 		standard Stomp Climb AirDash
 		expert Stomp Climb
 		expert DoubleBash
-	conn: RazielNo
+	pickup: RazielNo
 		casual Glide
 		casual DoubleJump
 		standard Health=3
