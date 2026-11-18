@@ -46,7 +46,7 @@ const new_box = (flags, box, shape) => ({_id: next_box_id++, flags: flags, box: 
 const numeric = (text) => /^\s*[+-]?(\d+\.?\d*|\.\d+)\s*$/.test(text)
 const hundredths = (v) => Math.round(v * 100) / 100
 
-const SHAPE_WORDS = {convex: "convex", loop: "loop", previewloop: "previewLoop"}
+const SHAPE_WORDS = {convex: "convex", loop: "loop", orientedloop: "orientedLoop", previewloop: "previewLoop"}
 
 // A shaped box's field as the game reads it, {kind, loops of [x, y]}, or null where the game throws:
 // a convex is one loop, every loop needs three points (the editor's previewLoop any), a last x alone is dropped.
@@ -83,8 +83,14 @@ function shape_bounds(read) {
     return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
 }
 
-// "", "convex" or "loop"
-const box_shape_kind = (b) => b.shape ? (parse_shape(b.shape) || {kind: ""}).kind.replace("preview", "") : ""
+// "", "convex" or "loop"; an orientedLoop or previewLoop is a loop
+const box_shape_kind = (b) => {
+    let read = b.shape ? parse_shape(b.shape) : null
+    return !read ? "" : read.kind === "convex" ? "convex" : "loop"
+}
+
+// an orientedLoop's loops fill as one, by nonzero winding, so a loop wound against another cuts a hole
+const box_winds = (b) => !!b.shape && (parse_shape(b.shape) || {}).kind === "orientedloop"
 
 // the hull's corners in order, by Andrew's monotone chain
 function convex_hull(points) {
@@ -112,11 +118,14 @@ function box_rings(b) {
     return [[[x1, y1], [x2, y1], [x2, y2], [x1, y2]]]
 }
 
-const ring_holds = (ring, x, y) => ring.reduce((inside, p, k) => {
+// the ring's turns around the point: crossings to its right, up +1, down -1; odd is inside by even-odd
+const winding = (ring, x, y) => ring.reduce((sum, p, k) => {
     let q = ring[(k + 1) % ring.length]
-    return (p[1] > y) !== (q[1] > y) && x < p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]) ? !inside : inside
-}, false)
-const box_holds = (b, x, y) => box_rings(b).some(ring => ring_holds(ring, x, y))
+    return (p[1] > y) !== (q[1] > y) && x < p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]) ? sum + (q[1] > p[1] ? 1 : -1) : sum
+}, 0)
+const box_holds = (b, x, y) => box_winds(b) ? box_rings(b).reduce((sum, ring) => sum + winding(ring, x, y), 0) !== 0
+    : box_rings(b).some(ring => winding(ring, x, y) % 2 !== 0)
+const signed_area = (ring) => ring.reduce((sum, p, k) => sum + p[0] * ring[(k + 1) % ring.length][1] - ring[(k + 1) % ring.length][0] * p[1], 0) / 2
 
 // the box (dx, dy) over: a shaped one moves every point by whole hundredths, so it keeps its shape, and its bounds follow
 function move_box(b, dx, dy) {
@@ -210,13 +219,13 @@ function reshape_box(b, kind) {
     return rings.some(ring => ring.length < 3) ? {} : shape_patch({kind: kind, loops: rings})
 }
 
-// a loop box with one more loop: a small triangle past its right side, there to be dragged into place
+// a loop box with one more loop: a small triangle past its right side, wound with the box's net turn so it adds ground
 function add_loop(b) {
     let read = b.shape ? parse_shape(b.shape) : null
-    if(!read || read.kind !== "loop")
+    if(!read || !["loop", "orientedloop"].includes(read.kind))
         return {}
-    let [, y1, x2] = shape_bounds(read)
-    read.loops.push([[x2 + 1, y1], [x2 + 3, y1], [x2 + 2, y1 + 2]])
+    let [, y1, x2] = shape_bounds(read), triangle = [[x2 + 1, y1], [x2 + 3, y1], [x2 + 2, y1 + 2]]
+    read.loops.push(read.loops.reduce((sum, l) => sum + signed_area(l), 0) < 0 ? triangle.reverse() : triangle)
     return shape_patch(read)
 }
 
@@ -593,6 +602,6 @@ export {
     BOX_PRESETS, BOX_COLORS, BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_flags, box_has_flag, box_flags_from_chips,
     parse_box_line, box_line, box_color, box_flag_ok, box_flag_warning, describe_flag, flag_completions, flag_menu, box_flag_choices, BOXES_TXT,
     compact_boxes, parse_box_paste, paste_boxes, box_search,
-    parse_shape, box_shape_kind, convex_hull, box_rings, box_holds, move_box,
+    parse_shape, box_shape_kind, box_winds, convex_hull, box_rings, box_holds, move_box,
     box_points, set_point, nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop
 };

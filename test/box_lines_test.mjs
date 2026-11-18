@@ -3,7 +3,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {parse_box_line, box_line, is_box_gone, box_hidden, box_color, box_flag_ok, box_flag_warning, box_flag_choices,
     box_flags_from_chips, box_has_flag, describe_flag, flag_completions, flag_menu, new_box, BOX_COLORS, compact_boxes,
-    parse_box_paste, paste_boxes, box_search, parse_shape, box_shape_kind, box_rings, box_holds, move_box,
+    parse_box_paste, paste_boxes, box_search, parse_shape, box_shape_kind, box_winds, box_rings, box_holds, move_box,
     box_points, set_point, nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop} from "../map/src/boxes.js"
 
 const model = (b) => ({flags: b.flags, box: b.box, color: b.color, give: b.give})
@@ -136,7 +136,9 @@ test("a shape reads as the game reads it", () => {
     assert.deepEqual(loops("loop, 0 ,0,4,0,+2,.5,9"), [[[0, 0], [4, 0], [2, 0.5]]])
     assert.deepEqual(loops("previewLoop,1,2"), [[[1, 2]]])
     assert.deepEqual(loops("previewLoop"), [[]])
-    for(let text of ["", "1,2,3,4", "convex", "convex,0,0,4,0", "loop,0,0,4,0,2,3,loop", "loop,loop,0,0,4,0,2,3", "loop,0,0,4,0,2,3,loop,1,1,2,2",
+    assert.deepEqual(loops("orientedLoop,0,0,4,0,2,3,loop,1,1,2,1,2,2"), [[[0, 0], [4, 0], [2, 3]], [[1, 1], [2, 1], [2, 2]]])
+    assert.equal(box_shape_kind(parse_box_line("BX|solid|ORIENTEDLOOP,0,0,4,0,2,3")), "loop")
+    for(let text of ["", "1,2,3,4", "convex", "convex,0,0,4,0", "orientedLoop,0,0,4,0", "oriented,0,0,4,0,2,3", "loop,0,0,4,0,2,3,loop", "loop,loop,0,0,4,0,2,3", "loop,0,0,4,0,2,3,loop,1,1,2,2",
                      "convex,0,0,4,0,2,3,loop,1,1,2,1,2,2", "loop,0,0,4,0,2,x", "loop,0,0,4,0,2,1e3", " convex,0,0,4,0,2,3", "hull,0,0,4,0,2,3"])
         assert.equal(parse_shape(text), null, text)
 })
@@ -161,6 +163,20 @@ test("a box holds what is inside an outline, each loop even-odd, not all of its 
     // the middle of a star is wound twice
     let star = parse_box_line("BX|solid|loop,0,3,4,-3,-4,1,4,1,-4,-3")
     assert.deepEqual([[0, 0], [0, 2], [3, 0.75]].map(([x, y]) => box_holds(star, x, y)), [false, true, true])
+})
+
+test("an orientedLoop fills by winding: a loop wound against the one around it is a hole", () => {
+    let holds = (shape) => [[1, 1], [5, 5], [11, 5]].map(([x, y]) => box_holds(parse_box_line("BX|solid|" + shape), x, y))
+    let outer = "0,0,10,0,10,10,0,10", against = "3,3,3,7,7,7,7,3", along = "3,3,7,3,7,7,3,7"
+    assert.deepEqual(holds("orientedLoop," + outer + ",loop," + against), [true, false, false])
+    assert.deepEqual(holds("orientedLoop," + outer + ",loop," + along), [true, true, false])
+    assert.deepEqual(holds("loop," + outer + ",loop," + against), [true, true, false])
+    // the middle of a star turns twice the same way, so it fills
+    assert.equal(box_holds(parse_box_line("BX|solid|orientedLoop,0,3,4,-3,-4,1,4,1,-4,-3"), 0, 0), true)
+    assert.deepEqual(["orientedLoop," + outer, "loop," + outer, "convex," + outer].map(s => box_winds(parse_box_line("BX|solid|" + s))),
+                     [true, false, false])
+    // a new loop turns with the box, clockwise here
+    assert.equal(add_loop(parse_box_line("BX|solid|orientedLoop,0,0,0,4,4,4,4,0")).shape, "orientedLoop,0,0,0,4,4,4,4,0,loop,6,2,7,0,5,0")
 })
 
 test("moving a shaped box moves every point by whole hundredths and its corners with them", () => {

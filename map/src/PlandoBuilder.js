@@ -11,7 +11,7 @@ import {get_param, get_flag, get_int, get_list, get_seed, presets, get_preset, l
         box_panel_width, remember_box_panel_width, doNetRequest, share_types_of} from './common.js';
 import {BOX_TOMBSTONE, is_box_gone, box_hidden, new_box, box_has_flag, box_flags_from_chips, parse_box_line, box_line,
         box_color, box_flag_ok, box_flag_choices, describe_flag, flag_completions, flag_menu, BOXES_TXT, compact_boxes,
-        box_search, parse_box_paste, paste_boxes, box_shape_kind, box_rings, box_holds, move_box, box_points, set_point,
+        box_search, parse_box_paste, paste_boxes, box_shape_kind, box_winds, box_rings, box_holds, move_box, box_points, set_point,
         nearest_side, insert_point, remove_point, tidy_shape, reshape_box, add_loop} from './boxes.js';
 import {EnemyPanel, enemy_markers, parse_rolls, rolls_line} from './enemies.js';
 import {draft_key, read_draft, write_draft, remove_draft, draft_hash, draft_offer, draft_saved, time_ago} from './plando_draft.js';
@@ -297,8 +297,12 @@ class BoxRect extends React.PureComponent {
         // the tooltip wants one element child; a bare string throws on open
         // i is what BM|n names: a box's place in this world's box lines
         let tip = <Tooltip sticky={true}><span>{box_label(b, i)}{b.locked ? " (locked)" : ""}</span></Tooltip>
-        if(b.shape)
-            return box_rings(b).map((ring, k) => <Polygon key={k} positions={ring.map(([x, y]) => [y, x])} {...look}>{tip}</Polygon>)
+        if(b.shape) {
+            let rings = box_rings(b).map(ring => ring.map(([x, y]) => [y, x]))
+            if(box_winds(b))
+                return <Polygon positions={rings} fillRule="nonzero" {...look}>{tip}</Polygon>
+            return rings.map((ring, k) => <Polygon key={k} positions={ring} {...look}>{tip}</Polygon>)
+        }
         let bounds = [[Math.min(b.box[1], b.box[3]), Math.min(b.box[0], b.box[2])], [Math.max(b.box[1], b.box[3]), Math.max(b.box[0], b.box[2])]]
         return <Rectangle bounds={bounds} {...look}>{tip}</Rectangle>
     }

@@ -66,7 +66,8 @@ test("one rewrite of any line that parses is stable", () => {
 const hundredth = fc.integer({min: -500000, max: 500000}).map(n => n / 100)
 const points = fc.array(fc.tuple(hundredth, hundredth), {minLength: 3, maxLength: 6}).map(ps => ps.flat().join(","))
 const shape = fc.oneof(fc.tuple(recase("convex"), points).map(t => t.join(",")),
-                       fc.array(fc.tuple(recase("loop"), points).map(t => t.join(",")), {minLength: 1, maxLength: 3}).map(ls => ls.join(",")))
+                       fc.array(fc.tuple(recase("loop"), points).map(t => t.join(",")), {minLength: 1, maxLength: 3}).map(ls => ls.join(",")),
+                       fc.tuple(recase("orientedLoop"), fc.array(points, {minLength: 1, maxLength: 3})).map(([w, ls]) => w + "," + ls.join(",loop,")))
 const shaped = fc.tuple(flags, shape, color).map(([f, s, c]) => `BX|${f.replace(/\|/g, "")}|${s}|${c}`.replace(/\|+$/, ""))
 
 test("a shaped line comes back as written, its corners around every point", () => {
