@@ -129,8 +129,9 @@ class SeedGenTests(unittest.TestCase):
     # same 257 lines, same non-EX items; the plant draws a pool item and the EX values re-roll.
     # 2026-10-27: Misty's pre-mortar corridor reaches Keystone 2; same header, lines and items, placements reshuffled.
     # 2026-10-27: Cleanfel's Ginso logic (#39); same header, lines and items, placements reshuffled.
-    # 2026-11-08: lifdoff's Upper Blackroot logic (#40); same header, lines and items, placements reshuffled.)
-    SOLO_CANARY = "9feb863536b4ed7991ce02aa7f9c922fa8270e15950ecd16498da77347403990"
+    # 2026-11-08: lifdoff's Upper Blackroot logic (#40); same header, lines and items, placements reshuffled.
+    # 2026-11-18: Misty (#91), Forlorn and Ginso (#90), Blackroot (#92); same header, lines and items, placements reshuffled.)
+    SOLO_CANARY = "82c90deece9418f998cdce7b1debe29d85316a7655514f2a5b56cc9c419304d0"
 
     def test_solo_output_canary(self):
         import hashlib
@@ -315,8 +316,8 @@ class MultiworldGenTests(unittest.TestCase):
     # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.
     # 2026-10-27: the Misty connection, see SOLO_CANARY; then share=Saves joined the header, placements unmoved.
     # 2026-10-27: Ginso logic (#39); same header, each world owns the same items, placements reshuffled.
-    # 2026-11-08: Upper Blackroot logic (#40), same again.)
-    MW_CANARY = "e5fdebf7518145fc6ec2ccd0cd4dd6c231c25694553b6b71a601b772e0cfa7f9"
+    # 2026-11-08: Upper Blackroot logic (#40), same again. 2026-11-18: #91, #90 and #92, same again.)
+    MW_CANARY = "a5b9aba9ae3d3ca258d53535e6b3afcb2876f8455eb709e378f573100729cfbf"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
@@ -963,7 +964,7 @@ class BuriedPlacementTests(PlacementRecordTests):
         records, seeds = self._gen_with_records(
             ["--balanced", "--players", "2", "--share-mode", "multiworld",
              "--fass", "%s:SK51@2" % (self.BURIED + 100)],
-            seedfiles=("randomizer_1.bfr", "randomizer_2.bfr"), seed="buriedtest6")
+            seedfiles=("randomizer_1.bfr", "randomizer_2.bfr"), seed="buriedtest7")
         self.assertGreaterEqual(min(self._depths(records, "Grenade|2")), 100)
         check_mw_invariants(self, {1: seeds["randomizer_1.bfr"], 2: seeds["randomizer_2.bfr"]})
         # P2's pool copy was consumed: exactly one Grenade for P2 anywhere
