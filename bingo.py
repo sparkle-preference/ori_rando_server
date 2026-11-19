@@ -934,22 +934,21 @@ class BingoGenerator(object):
         if meta:
             if not lockout:
                 goals += [
-                    # names are baked into saved games: VertSym mirrors left-right (column C),
-                    # HorizSym top-bottom (row 3); display names describe the mirroring
+                    # internal names follow the line of symmetry: VertSym mirrors left-right (column C), HorizSym top-bottom (row 3)
                     BoolGoal("VertSym",
-                    disp_name= "Horizontally symmetric board",
+                    disp_name= "Left-right symmetric board",
                     help_lines = [
-                        "Your bingo board is horizontally symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.",
-                        "For example, \"W\" is horizontally (but not vertically) symmetric.", 
+                        "Your bingo board is left-right symmetric if for every completed square in columns A and B, the same squares in columns D and E are completed.",
+                        "For example, \"W\" is left-right (but not top-bottom) symmetric.",
                         "You can regain and lose this square based on changes to your bingo board."
                         ],
                     tags=["early", "meta", "symmetry"]
                     ),
                     BoolGoal("HorizSym",
-                    disp_name= "Vertically symmetric board",
+                    disp_name= "Top-bottom symmetric board",
                     help_lines = [
-                        "Your bingo board is vertically symmetric if for every completed square in rows 1 and 2, the same squares in row 4 and 5 are completed.",
-                        "For example, \"E\" is vertically (but not horizontally) symmetric.", 
+                        "Your bingo board is top-bottom symmetric if for every completed square in rows 1 and 2, the same squares in row 4 and 5 are completed.",
+                        "For example, \"E\" is top-bottom (but not left-right) symmetric.",
                         "You can regain and lose this square based on changes to your bingo board."
                         ],
                     tags=["early", "meta", "symmetry"]
