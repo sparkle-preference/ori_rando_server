@@ -1641,6 +1641,10 @@ class ApSession(object):
             # room retargeted: _run's loop re-reads the link and dials the new room
             log.info("APBRIDGE room changed gid=%s world=%s, cycling", self.gid, self.world)
             return False
+        if link.status == "pending":
+            # a Connect against a live session: only a handshake writes "connected" otherwise
+            with self.ctx():
+                _persist_status(self.gid, "connected", None)
         if self.world in (link.goal_worlds or []):
             self._send_goal(sock)
         return True

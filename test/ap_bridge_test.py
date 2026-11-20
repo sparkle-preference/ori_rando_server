@@ -2459,11 +2459,16 @@ class TestLinkRetarget(unittest.TestCase):
         self.link.enabled = True
         self.link.host, self.link.port, self.link.password = "room.test", 38281, None
         self.link.goal_worlds = []
+        self.link.status = "connected"
         ap_bridge.APLink = type("FakeAPLink", (object,),
                                 {"with_id": staticmethod(lambda gid: self.link)})
+        self._saved_persist = ap_bridge._persist_status
+        self.persisted = []
+        ap_bridge._persist_status = lambda gid, status, error: self.persisted.append((gid, status, error))
 
     def tearDown(self):
         ap_bridge.APLink = self._saved
+        ap_bridge._persist_status = self._saved_persist
 
     def _session(self):
         maps = GameMaps(1, {1: {}}, {1: {}})
@@ -2471,6 +2476,17 @@ class TestLinkRetarget(unittest.TestCase):
 
     def test_same_room_continues(self):
         self.assertTrue(self._session()._recheck_link(sock=None))
+        self.assertEqual(self.persisted, [])
+
+    def test_same_room_connect_clears_pending(self):
+        self.link.status = "pending"
+        self.assertTrue(self._session()._recheck_link(sock=None))
+        self.assertEqual(self.persisted, [(942, "connected", None)])
+
+    def test_new_room_pending_cycles_without_claiming_connected(self):
+        self.link.status, self.link.port = "pending", 12345
+        self.assertFalse(self._session()._recheck_link(sock=None))
+        self.assertEqual(self.persisted, [])
 
     def test_port_change_cycles(self):
         self.link.port = 12345
