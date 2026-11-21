@@ -92,6 +92,25 @@ def html_links(text, base):
     return LINK_RE.sub(one, text)
 
 
+# **bold** marks a setting's menu path. Discord speaks it as is.
+BOLD_RE = re.compile(r"\*\*(\S(?:[^*]*?\S)?)\*\*")
+
+
+# `code` shows verbatim, with no bold or links inside. Discord speaks it as is.
+CODE_RE = re.compile(r"`([^`]+)`")
+
+
+def html_rich(text, base):
+    """Escaped text with code, bold and links as HTML."""
+    plain = lambda s: html_links(BOLD_RE.sub(r"<b>\1</b>", escape(s)), base)
+    out, at = [], 0
+    for m in CODE_RE.finditer(text):
+        out.append(plain(text[at:m.start()]))
+        out.append("<code>%s</code>" % escape(m.group(1)))
+        at = m.end()
+    return "".join(out) + plain(text[at:])
+
+
 def version_tuple(v):
     try:
         return tuple(int(x) for x in v.split("."))
@@ -311,7 +330,7 @@ def patchnotes_feed():
 
     def entry(r):
         major = [c for c in r["changes"] if c["importance"] == "major"]
-        rich = lambda s: html_links(escape(s), base)
+        rich = lambda s: html_rich(s, base)
         items = "".join(
             "<li>%s%s</li>" % (
                 rich(c["text"]),

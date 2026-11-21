@@ -38,6 +38,36 @@ const linkify = (text) => {
     out.push(text.slice(at))
     return out
 };
+// **bold** marks a setting's menu path; web/patchnotes.py renders it too.
+const BOLD_RE = /\*\*(\S(?:[^*]*?\S)?)\*\*/g;
+const boldify = (text) => {
+    let out = [], at = 0, m
+    BOLD_RE.lastIndex = 0
+    while((m = BOLD_RE.exec(text)) !== null) {
+        out.push(linkify(text.slice(at, m.index)))
+        out.push(<strong key={"b" + m.index}>{linkify(m[1])}</strong>)
+        at = m.index + m[0].length
+    }
+    if(!out.length)
+        return linkify(text)
+    out.push(linkify(text.slice(at)))
+    return out
+};
+// `code` shows verbatim, with no bold or links inside; web/patchnotes.py renders it too.
+const CODE_RE = /`([^`]+)`/g;
+const rich = (text) => {
+    let out = [], at = 0, m
+    CODE_RE.lastIndex = 0
+    while((m = CODE_RE.exec(text)) !== null) {
+        out.push(boldify(text.slice(at, m.index)))
+        out.push(<code key={"c" + m.index}>{m[1]}</code>)
+        at = m.index + m[0].length
+    }
+    if(!out.length)
+        return boldify(text)
+    out.push(boldify(text.slice(at)))
+    return out
+};
 
 // A fourth number is a site-only release: labels split it out, links stay raw.
 const siteRev = (v) => {
@@ -82,10 +112,10 @@ const Change = ({change, everything}) => (
             {(change.tags || []).map(t => (
                 <Badge key={t} pill className="mr-1" color={TAG_COLORS[t] || "secondary"}>{t}</Badge>
             ))}
-            {linkify(change.text)}
+            {rich(change.text)}
             {change.sub ? (
                 <div className="pn-sub mt-1">
-                    {change.sub.map((s, i) => <div key={i}><small>{linkify(s)}</small></div>)}
+                    {change.sub.map((s, i) => <div key={i}><small>{rich(s)}</small></div>)}
                 </div>
             ) : null}
         </div>
@@ -135,7 +165,7 @@ const Release = ({release, everything, latest, onShowEverything}) => {
                         <small><i>(this is a site-only update. {dllVersion} is still the latest dll)</i></small>
                     </p>
                 ) : null}
-                {release.headline ? <p>{linkify(release.headline)}</p> : null}
+                {release.headline ? <p>{rich(release.headline)}</p> : null}
                 {!anyVisible ? (
                     <p className="text-muted mb-0">
                         <small>Just small fixes in this one. </small>

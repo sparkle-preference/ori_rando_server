@@ -74,6 +74,14 @@
     box-shadow: 0 0 0 2px rgba(0, 123, 255, .45);
 }
 
+/* matches the help text's code look */
+.pn-item code {
+    color: var(--info);
+    background-color: rgba(128, 128, 128, 0.2);
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
+}
+
 /* Version jump list. nowrap matters: browsers will happily break "4.2.10"
    after a dot in a narrow sidebar, which reads as two separate versions. */
 .pn-version-line {

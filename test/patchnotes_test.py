@@ -259,6 +259,28 @@ class LinkTestCase(unittest.TestCase):
         got = pn.html_links(escape("[practice](/faq?g=practice&x=1)"), "https://x")
         self.assertEqual(got, '<a href="https://x/faq?g=practice&amp;x=1">practice</a>')
 
+    def test_bold_becomes_b_in_the_feed_and_stays_markdown_for_discord(self):
+        text = "turn on **Rando Options=>Dirty Water** and [read](/faq)"
+        self.assertEqual(pn.html_rich(text, "https://x"),
+                         'turn on <b>Rando Options=&gt;Dirty Water</b> and <a href="https://x/faq">read</a>')
+        self.assertIn("**Rando Options=>Dirty Water**", pn.markdown_links(text, "https://x"))
+
+    def test_a_lone_or_spaced_star_pair_is_not_bold(self):
+        for text in ("ES|** is any of the twelve", "a ** b ** c", "x**y"):
+            self.assertNotIn("<b>", pn.html_rich(text, "https://x"))
+
+    def test_code_is_verbatim_in_the_feed_and_stays_markdown_for_discord(self):
+        text = "write `RI|1=**2` or `[a](/b)` & **Rando Binds=>Map Warp**"
+        self.assertEqual(pn.html_rich(text, "https://x"),
+                         "write <code>RI|1=**2</code> or <code>[a](/b)</code> &amp; <b>Rando Binds=&gt;Map Warp</b>")
+        self.assertIn("`RI|1=**2`", pn.markdown_links(text, "https://x"))
+
+    def test_bold_does_not_reach_across_a_code_span(self):
+        self.assertNotIn("<b>", pn.html_rich("a**b `c` d**e", "https://x"))
+
+    def test_a_lone_backtick_is_not_code(self):
+        self.assertEqual(pn.html_rich("it`s fine", "https://x"), "it`s fine")
+
     def test_every_link_in_the_notes_is_one_we_render(self):
         for release in DOC["releases"]:
             texts = [release.get("headline") or ""]
