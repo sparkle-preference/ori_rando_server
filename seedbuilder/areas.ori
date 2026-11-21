@@ -1226,7 +1226,12 @@ home: BlackrootGrottoConnection 376 -297
 		casual Stomp DoubleJump
 		standard Stomp
 		standard Climb ChargeJump
-		glitched Free
+		standard Lure ChargeJump
+		standard Lure Climb
+		standard Lure WallJump
+		standard Lure DoubleJump
+		standard Lure Bash
+		expert Lure Free
 	pickup: BlackrootMap
 		casual Mapstone WallJump
 		casual Mapstone Climb DoubleJump

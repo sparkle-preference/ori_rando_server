@@ -316,8 +316,9 @@ class MultiworldGenTests(unittest.TestCase):
     # 2026-10-15: header only, see SOLO_CANARY. 2026-10-18: the Forlorn escape plant, see SOLO_CANARY.
     # 2026-10-27: the Misty connection, see SOLO_CANARY; then share=Saves joined the header, placements unmoved.
     # 2026-10-27: Ginso logic (#39); same header, each world owns the same items, placements reshuffled.
-    # 2026-11-08: Upper Blackroot logic (#40), same again. 2026-11-18: #91, #90 and #92, same again.)
-    MW_CANARY = "a5b9aba9ae3d3ca258d53535e6b3afcb2876f8455eb709e378f573100729cfbf"
+    # 2026-11-08: Upper Blackroot logic (#40), same again. 2026-11-18: #91, #90 and #92, same again.
+    # 2026-11-21: the Blackroot boulder lure paths, same again.)
+    MW_CANARY = "82ff0b470088840c7442cee04fe1e0ac6f9a0c3f1a5260537c624e1f87c3f86d"
 
     def test_exp_pool_is_per_world(self):
         # exp_pool (default 10000) is a PER-WORLD budget. A world's exp lives
@@ -791,7 +792,8 @@ class EarlyPlacementTests(PlacementRecordTests):
 
     def test_the_crossing_forces_a_late_target_inside_the_window(self):
         self._with_target(74)
-        records, _ = self._gen_with_records(["--fass", "%s:SK5" % (self.EARLY + 75)])
+        # a target this late leaves some seeds unbuildable; this one builds
+        records, _ = self._gen_with_records(["--fass", "%s:SK5" % (self.EARLY + 75)], seed="buriedtest6")
         self.assertLess(max(self._round_starts(records, "DoubleJump|1")), 75)
         self.assertEqual(dict(self.gen.gen_warnings), {})
 
