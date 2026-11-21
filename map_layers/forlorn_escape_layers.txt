@@ -1,0 +1,14 @@
+# state x0 y0 x1 y1 scenes: the world rect each layer image covers and what's in it
+0 -1384.83 -469.17 -1158.50 -183.83 forlornRuinsNestC,forlornRuinsWindShaftMockupB,forlornRuinsWindShaftMockupC,forlornRuinsResurrectionAfter
+# cells state x0 y0 x1 y1: the world rect of the layer's cell picture; a pixel's R + 256 G is its reveal cell, 0 none
+cells 0 -1393.00 -477.00 -1151.00 -176.00
+# count n: the set's reveal cells, numbered from 1; each is a bit in the client's inventory
+count 41
+# scene name bit x0 y0 x1 y1: a scene of the set and its bounds (the bit is unused)
+scene forlornRuinsNestC 0 -1246.50 -294.00 -1093.00 -182.00
+scene forlornRuinsWindShaftMockupB 1 -1373.50 -402.50 -1272.50 -276.00
+scene forlornRuinsWindShaftMockupC 2 -1272.50 -378.00 -1207.00 -294.00
+scene forlornRuinsResurrectionAfter 3 -1385.00 -474.00 -1312.00 -402.50
+# break x0 y0 x1 y1: a breakable floor or wall, the gap its map icon sits in
+# home g1 g2 g3 g4 scene: a pickup's or door's map icon guid, and the scene the thing is in
+home 1660790238 1127452529 300174735 -1356736769 forlornRuinsNestC

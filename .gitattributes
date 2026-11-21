@@ -1,0 +1,2 @@
+# map layer pictures are fetched by MD5 from GitHub raw, so keep their bytes exact
+map_layers/** -text

@@ -1,0 +1,129 @@
+# state x0 y0 x1 y1 scenes: the world rect each layer image covers and what's in it
+1 -1091.00 -34.33 -592.33 63.50 mistyWoodsBashUp,mistyWoodsGetTorch,mistyWoodsIntro,mistyWoodsJumpProjectile,sorrowPassForestB
+0 -1091.00 -11.83 -987.83 63.50 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsNarrowPassage
+2 -1089.00 -11.83 -896.00 24.67 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsNarrowPassage,mistyWoodsRopeBridge
+3 -1200.50 -104.67 -896.00 24.67 mistyWoodsGetClimb,mistyWoodsGetTorch,mistyWoodsGlideMazeA,mistyWoodsNarrowPassage,mistyWoodsRopeBridge
+4 -1200.50 -104.67 -904.33 -20.33 mistyWoodsCeilingClimbing,mistyWoodsConnector,mistyWoodsGetClimb,mistyWoodsGetTorch,mistyWoodsNarrowPassage
+5 -1200.50 -190.33 -757.50 -18.67 mistyWoodsCeilingClimbing,mistyWoodsConnector,mistyWoodsCrissCross,mistyWoodsGetClimb,mistyWoodsGetTorch,mistyWoodsGlideMazeB,mistyWoodsLaserFlipPlatforms,mistyWoodsMortarBash,mistyWoodsNarrowPassage
+6 -936.83 -190.33 -603.33 9.50 mistyWoodsDocks,mistyWoodsMortarBash,mistyWoodsProjectileBashing,mistyWoodsRopeBridge,mistyWoodsShortPath,mistyWoodsTIntersection
+8 -1089.00 -34.33 -592.33 24.67 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsJumpProjectile,mistyWoodsNarrowPassage,mistyWoodsRopeBridge,sorrowPassForestB
+9 -1089.00 -34.33 -592.33 24.67 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsJumpProjectile,mistyWoodsNarrowPassage,mistyWoodsRopeBridge,sorrowPassForestB
+# picture state x0 y0 x1 y1 scenes: a picture with no place of its own in the order, read like a layer
+picture 11 -1200.50 -145.83 -800.50 -18.67 mistyWoodsCeilingClimbing,mistyWoodsConnector,mistyWoodsCrissCross,mistyWoodsGetClimb,mistyWoodsGlideMazeB,mistyWoodsLaserFlipPlatforms,mistyWoodsMortarBash,mistyWoodsNarrowPassage
+picture 12 -936.83 -190.33 -603.33 9.50 mistyWoodsDocks,mistyWoodsGlideMazeB,mistyWoodsMortarBash,mistyWoodsNarrowPassage,mistyWoodsProjectileBashing,mistyWoodsRopeBridge,mistyWoodsShortPath,mistyWoodsTIntersection
+picture 15 -1200.50 -104.67 -592.33 24.67 mistyWoodsGetClimb,mistyWoodsGetTorch,mistyWoodsGlideMazeA,mistyWoodsJumpProjectile,mistyWoodsNarrowPassage,mistyWoodsRopeBridge,sorrowPassForestB
+picture 22 -1091.00 -11.83 -896.00 63.50 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsNarrowPassage,mistyWoodsRopeBridge
+picture 23 -1200.50 -104.67 -896.00 63.50 mistyWoodsGetClimb,mistyWoodsGetTorch,mistyWoodsGlideMazeA,mistyWoodsNarrowPassage,mistyWoodsRopeBridge
+picture 26 -966.00 -190.33 -603.33 24.67 mistyWoodsDocks,mistyWoodsMortarBash,mistyWoodsProjectileBashing,mistyWoodsRopeBridge,mistyWoodsShortPath,mistyWoodsTIntersection
+picture 28 -1091.00 -34.33 -592.33 63.50 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsJumpProjectile,mistyWoodsNarrowPassage,mistyWoodsRopeBridge,sorrowPassForestB
+picture 32 -1040.00 -190.33 -603.33 24.67 mistyWoodsDocks,mistyWoodsGlideMazeB,mistyWoodsMortarBash,mistyWoodsNarrowPassage,mistyWoodsProjectileBashing,mistyWoodsRopeBridge,mistyWoodsShortPath,mistyWoodsTIntersection
+picture 35 -1200.50 -104.67 -592.33 63.50 mistyWoodsGetClimb,mistyWoodsGetTorch,mistyWoodsGlideMazeA,mistyWoodsJumpProjectile,mistyWoodsNarrowPassage,mistyWoodsRopeBridge,sorrowPassForestB
+picture 39 -1091.00 -34.33 -592.33 63.50 mistyWoodsDocksB,mistyWoodsGetTorch,mistyWoodsJumpProjectile,mistyWoodsNarrowPassage,mistyWoodsRopeBridge,sorrowPassForestB
+# name state words: what the map calls the layer
+name 1 Entrance
+name 0 Post-KS1
+name 2 Post-KS2
+name 3 Pre-Climb
+name 4 Post-Climb
+name 5 Post-KS3
+name 6 Orb Approach
+name 8 Orb Walk
+name 9 Unshrouded
+# late state needs: the cycle offers the layer only once all hold; a need is a state the save has been in, a mark it has earned, or below zero a pickup it has taken
+late 9 9
+# gone state needs: the cycle drops the layer once all hold
+gone 0 10
+gone 5 10 -7680144
+gone 8 10 9
+# stands picture layer needs: once all hold, the picture is drawn in the layer's place
+stands 11 4 10 -11880100 -9120036
+stands 12 6 10 -7680144
+stands 15 3 10
+# mark need state x0 y0 x1 y1: a need numbered past the states, which the save has once Ori has stood in the rect in that state
+mark 16 2 -1091.00 24.50 -990.00 62.00
+mark 17 15 -1091.00 24.50 -990.00 62.00
+mark 18 6 -966.00 4.00 -898.00 24.00
+mark 19 12 -966.00 4.00 -898.00 24.00
+mark 20 8 -1091.00 24.50 -990.00 62.00
+mark 21 9 -1091.00 24.50 -990.00 62.00
+# whole picture layer needs: once all hold, the picture is drawn wherever the layer would be
+whole 22 2 16
+whole 23 3 17
+whole 26 6 18
+whole 28 8 20
+whole 32 12 19
+whole 35 15 17
+whole 39 9 21
+# first state layer cell: in that state the map shows the layer until the reveal cell is lit
+first 15 3 20
+# cells state x0 y0 x1 y1: the world rect of the layer's cell picture; a pixel's R + 256 G is its reveal cell, 0 none
+cells 0 -1099.00 -20.00 -980.00 71.00
+cells 1 -1099.00 -42.00 -590.00 71.00
+cells 2 -1097.00 -20.00 -888.00 32.00
+cells 3 -1208.00 -112.00 -888.00 32.00
+cells 4 -1208.00 -112.00 -897.00 -13.00
+cells 5 -1212.00 -202.00 -746.00 -7.00
+cells 6 -945.00 -198.00 -596.00 17.00
+cells 8 -1097.00 -42.00 -590.00 32.00
+cells 9 -1097.00 -42.00 -590.00 32.00
+cells 11 -1208.00 -154.00 -793.00 -11.00
+cells 12 -945.00 -198.00 -596.00 17.00
+cells 15 -1208.00 -112.00 -590.00 32.00
+cells 22 -1099.00 -20.00 -888.00 71.00
+cells 23 -1208.00 -112.00 -888.00 71.00
+cells 26 -974.00 -198.00 -596.00 33.00
+cells 28 -1099.00 -42.00 -590.00 71.00
+cells 32 -1048.00 -198.00 -596.00 32.00
+cells 35 -1208.00 -112.00 -590.00 71.00
+cells 39 -1099.00 -42.00 -590.00 71.00
+# count n: the set's reveal cells, numbered from 1; each is a bit in the client's inventory
+count 55
+# scene name bit x0 y0 x1 y1: a scene of the set and its bounds (the bit is unused)
+scene mistyWoodsBashUp 0 -960.50 -36.50 -864.50 61.00
+scene mistyWoodsCeilingClimbing 1 -1048.00 -105.50 -903.50 -20.50
+scene mistyWoodsConnector 2 -1094.50 -105.00 -1048.00 -69.00
+scene mistyWoodsCrissCross 3 -850.00 -113.00 -791.00 -1.50
+scene mistyWoodsDocks 4 -791.00 -73.00 -683.50 -2.50
+scene mistyWoodsDocksB 5 -1108.00 -31.00 -1038.00 14.00
+scene mistyWoodsGetClimb 6 -1205.00 -107.50 -1094.50 -38.00
+scene mistyWoodsGetTorch 7 -1093.00 18.00 -1038.00 61.00
+scene mistyWoodsGlideMazeA 8 -1094.50 -105.50 -996.00 18.00
+scene mistyWoodsGlideMazeB 9 -892.50 -196.00 -808.50 -78.50
+scene mistyWoodsIntro 10 -1038.00 18.00 -960.50 61.00
+scene mistyWoodsJumpProjectile 11 -864.50 -36.50 -743.00 -2.00
+scene mistyWoodsLaserFlipPlatforms 12 -974.00 -108.00 -850.00 -29.00
+scene mistyWoodsMortarBash 13 -850.00 -200.00 -753.00 -101.00
+scene mistyWoodsNarrowPassage 14 -1038.00 -22.00 -964.00 61.00
+scene mistyWoodsProjectileBashing 15 -683.50 -87.00 -600.00 -2.50
+scene mistyWoodsRopeBridge 16 -964.00 -30.50 -864.50 22.50
+scene mistyWoodsShortPath 17 -864.50 -36.50 -784.50 1.00
+scene mistyWoodsTIntersection 18 -787.00 -132.50 -729.00 -73.00
+scene sorrowPassForestB 19 -743.00 -39.00 -600.00 -4.00
+# break x0 y0 x1 y1: a breakable floor or wall, the gap its map icon sits in
+break -1126.58 -87.11 -1115.42 -84.89
+break -694.30 -40.14 -693.24 -35.60
+break -688.95 -27.59 -681.13 -24.64
+# home g1 g2 g3 g4 scene: a pickup's or door's map icon guid, and the scene the thing is in
+home -1189167043 1297330448 1299320726 -140048700 mistyWoodsJumpProjectile
+home -1586264184 1330975986 532976530 -1392281462 mistyWoodsRopeBridge
+home -1785857521 1110338227 -1483152975 -1170739426 mistyWoodsGlideMazeA
+home -1845413915 1116455042 -1195597421 1208449782 mistyWoodsCeilingClimbing
+home -1898862293 1292937389 2046575787 227556073 mistyWoodsGetClimb
+home -1901185028 1335609978 944196496 971823182 mistyWoodsMortarBash
+home -2122689339 1205506742 -1252421240 -1011736560 mistyWoodsProjectileBashing
+home -683076544 1089512915 779827113 1588183372 mistyWoodsGetTorch
+home 1080516029 1310482236 617082502 1390239516 mistyWoodsGlideMazeA
+home 1082600029 1187585381 -1187445315 1489955729 sorrowPassForestB
+home 1136985147 1287867184 -306519164 2024007093 mistyWoodsGlideMazeB
+home 1196506928 1190185091 814715793 1622201281 mistyWoodsIntro
+home 1251432986 1140190974 -359058798 -1811838690 sorrowPassForestB
+home 1388787891 1183817694 177204926 475558337 mistyWoodsGetClimb
+home 146166652 1341284496 1106176662 -1715995101 mistyWoodsDocksB
+home 1582709074 1119754063 -1458101589 -534127359 mistyWoodsGetClimb
+home 1655915807 1111393741 -1097917292 1441696069 mistyWoodsDocksB
+home 1699655288 1163139998 1376822149 -172222666 mistyWoodsMortarBash
+home 798721424 1248204431 -833666155 890247819 sorrowPassForestB
+# only g1 g2 g3 g4 layers: an icon on those layers alone, whatever its scene is drawn in
+only 1082600029 1187585381 -1187445315 1489955729 8,9,28,39
+# unnamed g1 g2 g3 g4 layers: layers the icon is on that its tooltip's list leaves out
+unnamed 1082600029 1187585381 -1187445315 1489955729 9,39

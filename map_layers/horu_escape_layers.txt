@@ -1,0 +1,14 @@
+# state x0 y0 x1 y1 scenes: the world rect each layer image covers and what's in it
+0 -286.50 456.83 194.50 587.50 catAndMouseResurrectionRoom,catAndMouseLeft,catAndMouseMid,catAndMouseRight
+# cells state x0 y0 x1 y1: the world rect of the layer's cell picture; a pixel's R + 256 G is its reveal cell, 0 none
+cells 0 -295.00 449.00 202.00 595.00
+# count n: the set's reveal cells, numbered from 1; each is a bit in the client's inventory
+count 28
+# scene name bit x0 y0 x1 y1: a scene of the set and its bounds (the bit is unused)
+scene catAndMouseResurrectionRoom 0 -323.00 475.00 -164.00 553.00
+scene catAndMouseLeft 1 -164.00 483.00 -19.50 557.50
+scene catAndMouseMid 2 -19.50 447.50 133.00 558.00
+scene catAndMouseRight 3 133.00 455.50 314.00 587.50
+# break x0 y0 x1 y1: a breakable floor or wall, the gap its map icon sits in
+# home g1 g2 g3 g4 scene: a pickup's or door's map icon guid, and the scene the thing is in
+home 790087121 1186070005 -628788077 445723304 catAndMouseResurrectionRoom

@@ -18,4 +18,5 @@ e2e
 test
 mockclient
 archipelago/dist
+map_layers
 *.apworld
