@@ -38,8 +38,8 @@ const BINGO_CLASSES = [
   [".bingo-label.is-bingo", "The label of a finished row, column, or diagonal."]
 ];
 const counts = {
-  "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
-  "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": 3, "RB|36": 1, "RB|6": 5, "RB|12": 5, "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
+  "standard": { "RB|0": 3, "RB|1": 3, "RB|6": "3/5*", "RB|9": 1, "RB|10": 1, "RB|11": 1, "RB|12": "1/2-5*", "RB|13": 3, "RB|15": 3, "RB|17": "5**", "RB|19": "5**", "RB|21": "5**"},
+  "bonus": { "RB|31": 1, "RB|32": 1, "RB|33": "2-5", "RB|36": 1, "RB|37": "2-5", "RB|101": "*", "RB|102": "*", "RB|103": "*", "RB|104": "**", "RB|105": "**", "RB|106": "*", "RB|107": "*", "RB|109": "*", "RB|110": "*", "RB|111": "***", "RB|113": "***"},
 }
 const buttonHolder="mt-0 pt-0 pb-0 mb-0 text-center border-none"
 // spoiler-tagged hint: the label toggles it
@@ -107,10 +107,10 @@ export default class HelpAndGuides extends React.Component {
                 <Col className="text-center" xs="1">#</Col>
                 </Row>
                 {normal}
-                <Row className="border-left border-right"><Col className="text-center"><small>*: extra copies of this item are added if the "Bonus Pickups" item pool preset is selected.</small></Col></Row>
+                <Row className="border-left border-right"><Col className="text-center"><small>*: the Extra Bonus and Bonus Lite item pool presets add extra copies of this item.</small></Col></Row>
                 <Row className="border-left border-right border-bottom"><Col className="text-center"><small>**: Only in seeds generated with KeyMode set to Shards.</small></Col></Row>
                 <CardText className="text-center mt-3">
-                <h5>The following items are only present when using the Bonus Pickups item pool preset (or a custom one).</h5>
+                <h5>The following items are only present when using the Extra Bonus or Bonus Lite item pool presets (or a custom one).</h5>
                 </CardText>
                 <Row className="border">
                 <Col className="text-center" xs="3">Pickup Name</Col>
@@ -118,9 +118,9 @@ export default class HelpAndGuides extends React.Component {
                 <Col className="text-center" xs="1">#</Col>
                 </Row>
                 {bonus}
-                <Row className="border-left border-right"><Col className="text-center"><small>*: 4 bonus skills are chosen at random in seeds using the Bonus Pickups item pool preset.</small></Col></Row>
-                <Row className="border-left border-right"><Col className="text-center"><small>**: At most 1 Teleport bonus skill will be in seeds using the Bonus Pickups item pool preset.</small></Col></Row>
-                <Row className="border-left border-right border-bottom"><Col className="text-center"><small>***: Rare bonus skills (10% chance of seeing one in seeds using the Bonus Pickups item pool preset)</small></Col></Row>
+                <Row className="border-left border-right"><Col className="text-center"><small>*: 4 bonus skills are chosen at random in seeds using the Extra Bonus item pool preset.</small></Col></Row>
+                <Row className="border-left border-right"><Col className="text-center"><small>**: At most 1 Teleport bonus skill will be in seeds using the Extra Bonus item pool preset.</small></Col></Row>
+                <Row className="border-left border-right border-bottom"><Col className="text-center"><small>***: Rare bonus skills (about a 6% chance of seeing one in seeds using the Extra Bonus item pool preset)</small></Col></Row>
 
             </Collapse>
             </CardBody>
@@ -143,7 +143,7 @@ export default class HelpAndGuides extends React.Component {
                     </CardText>
                     <CardText className="border">
                         <small>Compatibility Note: The Ori randomizer is only compatible with Ori and the Blind Forest: Definitive Edition (Ori DE) for the PC.
-                            It is not compatible the Windows Store version of Ori DE, as the Windows Store has anti-tampering features that prevent the mod from working.</small>
+                            It is not compatible with the Windows Store version of Ori DE, as the Windows Store has anti-tampering features that prevent the mod from working.</small>
                     </CardText>
                     <CardText>
                         Installation steps:
@@ -164,7 +164,7 @@ export default class HelpAndGuides extends React.Component {
                                 </li></ul></small>
                             </li>
                             <li>
-                                Installation complete! All you need now to start playing is a seed; either grab one from the Starter Seed check out the guide below to generate your own!
+                                Installation complete! All you need now to start playing is a seed; either grab one of the Starter Seeds or check out the guide below to generate your own!
                             </li>
                         </ol>
                     </CardText>
@@ -196,7 +196,7 @@ export default class HelpAndGuides extends React.Component {
                 </CardText>
                 <CardText className="border">
                     <small>Compatibility Note: The Ori randomizer is only compatible with Ori and the Blind Forest: Definitive Edition (Ori DE) for the PC. 
-                        It is not compatible the Windows Store version of Ori DE, as the Windows Store has anti-tampering features that prevent the mod from working.</small>
+                        It is not compatible with the Windows Store version of Ori DE, as the Windows Store has anti-tampering features that prevent the mod from working.</small>
                 </CardText>
                 <CardText>
                     Installation steps:
@@ -218,9 +218,12 @@ export default class HelpAndGuides extends React.Component {
                         Download the Randomizer version of Assembly-Csharp.dll{" "}<a target="_blank" rel="noopener noreferrer" href="/dll">here</a>, and move it into the oriDE_Data/Managed folder.
                     </li>
                     <li>
-                        Installation complete! All you need now to start playing is a seed; either grab one from the Starter Seed check out the guide below to generate your own!
+                        Installation complete! All you need now to start playing is a seed; either grab one of the Starter Seeds or check out the guide below to generate your own!
                     </li>
                     </ol>
+                </CardText>
+                <CardText>
+                    When a new version is released, the randomizer will download it and offer an "Update" option on the main menu.
                 </CardText>
                 <CardText>
                     To play the original game again, simply replace your Assembly-CSharp.dll file with the backup you made. If you didn't
@@ -359,7 +362,7 @@ export default class HelpAndGuides extends React.Component {
                     To install the tracker:
                     <ol>
                     <li>
-                        Download the tracker {" "}<a target="_blank" rel="noopener noreferrer" href="/tracker">here</a>.
+                        Download the tracker zip from its release page{" "}<a target="_blank" rel="noopener noreferrer" href="/tracker">here</a>.
                     </li>
                     <li>
                         Extract the files to wherever you would like.
@@ -474,10 +477,10 @@ export default class HelpAndGuides extends React.Component {
                         In addition to the normal pickup locations, you can find pickups by:
                         <ul>
                             <li>
-                                Destroying petrified (blue) plants (These now show up on the minimap)
+                                Destroying petrified (blue) plants (These show up on the map)
                             </li>
                             <li>
-                                Unlocking maps by turning in mapstones (9 pickups, 1 per map)
+                                Turning in mapstones (9 pickups, given in the order you turn them in, whichever map it is)
                             </li>
                             <li>
                                 Finishing rooms in Mount Horu (8 pickups, 1 per room)
@@ -485,7 +488,8 @@ export default class HelpAndGuides extends React.Component {
                         </ul>
                     </li>
                     <li>
-                        You can use the Warp keybinding (bound to alt+R by default, rebindable using RandomizerRebindings.txt) to teleport to a Spirit Well at any time, to prevent logical softlocks.
+                        Warp (Alt+R by default) opens the teleport map from anywhere, so you can always get to a Spirit Well you've activated.
+                        You can also hover a Spirit Well on the area map and hold Bash to warp there. Both binds can be changed under RANDO BINDS in the options menu.
                         <ul>
                             <li>
                                 The Sunken Glades Spirit Well is automatically granted to the player upon picking up Sein/Spirit Flame - you can Warp back to Glades to skip fighting the three fronkeys (jumping enemies) that spawn after picking it up.
@@ -511,10 +515,13 @@ export default class HelpAndGuides extends React.Component {
                         There are new pickups not found in the base game, including teleporter unlocks and several bonus pickups. Check out the Bonus Item Glossary guide below to learn more about them.
                     </li>
                     <li>
-                        The purple tree has been changed substantially: see the <a href="/patchnotes#3.0" target="_blank" rel="noopener noreferrer">patch notes</a> for details.
+                        The purple tree has been changed substantially: the ability menu describes what each ability does now.
                     </li>
                     <li>
-                        The UI transparency is increased while performing a "Save Anywhere" glitch. The amount of transparency is configurable in the RandomizerSettings.txt file.
+                        The map is revealed from the start and shows the pickups you can reach. Press Grenade on the map to switch what it shows.
+                    </li>
+                    <li>
+                        The ability menu is see-through while performing a "Save Anywhere" glitch. Set how much with Ability Menu Opacity in ACCESSIBILITY/QOL in the options menu.
                     </li>
                 </ul>
                 </CardText>
@@ -671,10 +678,7 @@ export default class HelpAndGuides extends React.Component {
                         In the Clues keymode, the borders between zones are not always obvious. Check out <a target="_blank" rel="noopener noreferrer" href="https://i.imgur.com/lHgbqmI.jpg">this map</a> to see exactly which pickup is considered to be in which zone!
                         </li>
                         <li>
-                        Do not Warp out of any room with a temporary lock (Ginso miniboss 1, Grotto Miniboss, Outer Swamp Spitter puzzle area) with the door still closed. You may softlock if you do.
-                        </li>
-                        <li>
-                        Do not Warp out of the fronkey fight after Sein unless you have already picked up the exp orb below Sein. You may softlock if you do.
+                        Do not Warp out of the Outer Swamp Spitter puzzle area with the door still closed. You may softlock if you do.
                         </li>
                     </ul>
                 </CardText>
