@@ -2248,7 +2248,7 @@ class PlandoBuiler extends React.Component {
                         <datalist id="box-color-history">
                             {this.state.box_colors.map(c => <option key={c} value={c}/>)}
                         </datalist>
-                        <div className="box-help">With Edit on map on, drag a box to move it or a corner to resize it. On a convex or loop box, right-click a side to add a point, or a point to remove it. # is the number BM|n uses; the eye hides a box in game and the lock freezes it. Flags are explained in <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>.</div>
+                        <div className="box-help">With Edit on map on, drag a box to move it or a corner to resize it. On a convex or loop box, right-click a side to add a point, and right-click on a point to remove it. # is the number BM|n uses; the eye hides a box in game and the lock freezes it. Flags are explained in <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>.</div>
                         <div className="box-list">
                             {/* shown only once a box fits one line; the spans take the row's column widths */}
                             <div className="box-row box-list-header">

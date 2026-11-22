@@ -10,7 +10,7 @@ const VALUE_FLAGS = ["on", "damage", "renderdepth", "parallaxdepth"]
 const BOX_PRESETS = {kill: "box kills Ori", item: "grants an item once", solid: "box with collision",
                      ritem: "grants an item repeatedly"}
 const BOX_FLAG_SUGGESTIONS = {...BOX_PRESETS, once: "box toggles off when collected", unsafe: "saves disabled inside box",
-                              unlit: "box ignores lighting; stops ghosting when moved",
+                              unlit: "box ignores lighting (prevents ghosting during movement)",
                               "on=Tick":"grant 60 times a second while inside box", "on=Tick/60/60": "grant once a second while inside box",
                               "on=Frame": "grant every frame while inside box",
                               "damage=1": "box damages entities touching it", "renderDepth=-99": "draw box over terrain",
@@ -453,7 +453,7 @@ function flag_menu(options, completions, whole) {
 }
 
 // what only a rectangle does, and what a loop box does only when solid: it has no inside to touch
-const RECT_ONLY = {unsafe: "Only a rectangle can be unsafe", goal: "Only a rectangle can be a goal"}
+const RECT_ONLY = {unsafe: "Unsafe boxes must be rectangular", goal: "Goal boxes must be rectangular"}
 const NEEDS_INSIDE = ["kill", "damage", "once", "item", "ritem"]
 
 // The chip or menu line for a flag. It warns where the box can't honor it: a kill on a box that gives
@@ -466,7 +466,7 @@ function flag_option(flag, give, kind, solid) {
     if(kind && RECT_ONLY[key])
         [text, warn] = [RECT_ONLY[key], true]
     else if(kind === "loop" && !solid && NEEDS_INSIDE.includes(key) && (gives || !key.endsWith("item")))
-        [text, warn] = ["A loop box only works solid or as decoration", true]
+        [text, warn] = ["Loop boxes must be solid", true]
     return {label: flag, value: flag, warn: !!warn, tip: text, desc: BOX_FLAG_SUGGESTIONS[flag], color: BOX_COLORS[flag.toLowerCase()]}
 }
 const SUGGESTED = Object.keys(BOX_FLAG_SUGGESTIONS).map(flag => flag_option(flag))

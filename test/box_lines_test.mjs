@@ -247,7 +247,7 @@ test("a flag its box's shape can't honor warns", () => {
     assert.deepEqual(warns("kill,damage=1,once,item,ritem,unlit,renderDepth=5", "", "loop"), ["kill", "damage=1", "once"])
     assert.deepEqual(warns("item,ritem", "SK|0", "loop"), ["item", "ritem"])
     assert.deepEqual(warns("Solid,kill,once,item", "SK|0", "loop"), ["kill"])
-    assert.match(box_flag_choices("once", "", "loop").chips[0].tip, /solid or as decoration/)
+    assert.match(box_flag_choices("once", "", "loop").chips[0].tip, /must be solid/)
     assert.equal(describe_flag("unlit").warn, undefined)
 })
 
