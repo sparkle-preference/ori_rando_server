@@ -456,9 +456,9 @@ test("owners it can't settle are problems", () => {
 })
 
 test("box state read or written by slot is a problem", () => {
-    for(let value of ["RI|1700=0", "SH|{2700}", "BM|0={1999}", "MU|EX/1/RI/2999+=1"])
+    for(let value of ["RI|1700=0", "SH|{1850}", "BM|0={1999}", "MU|EX/1/RI/1999+=1"])
         assert.equal(compact_boxes(HOLEY(), [here(value)]).problems.length, 1, value)
-    assert.deepEqual(compact_boxes(HOLEY(), [here("RI|8000=1"), here("SH|{2000}"), here("SH|{2651}")]).problems, [])
+    assert.deepEqual(compact_boxes(HOLEY(), [here("RI|8000=1"), here("SH|{2000}"), here("SH|{1699}")]).problems, [])
 })
 
 test("BR names its box like BM, and {Bn} reads anywhere follow their boxes", () => {
@@ -485,7 +485,8 @@ test("a BR without a box number, or an offset without =, is a problem", () => {
     for(let value of ["BR|x=1,2", "BR|4+", "BM|4+=1"])
         assert.equal(compact_boxes(HOLEY(), [here(value)]).problems.length, 1, value)
     assert.deepEqual(compact_boxes(HOLEY(), [here("SH|{1750}")]).problems.length, 1)
-    assert.deepEqual(compact_boxes(HOLEY(), [here("SH|{11000}")]).problems.length, 0)
+    for(let free of ["SH|{11000}", "SH|{2750}", "RI|2800=5"])
+        assert.deepEqual(compact_boxes(HOLEY(), [here(free)]).problems.length, 0, free)
 })
 
 test("compacting twice changes nothing the second time", () => {

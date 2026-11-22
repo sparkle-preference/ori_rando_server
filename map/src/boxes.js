@@ -482,8 +482,8 @@ function box_flag_choices(flags, give, kind) {
 const box_flags_from_chips = (flags) => ({flags: flags.join(",")})
 
 const MULTI_CODES = ["MU", "RP", "RG"]
-// the client keeps box state in these slots by box number: off bits, then contact bits
-const BOX_STATE_SLOTS = [[1700, 1999], [2700, 2999]]
+// the client keeps each box's off bit in these slots, by box number
+const BOX_STATE_SLOTS = [[1700, 1999]]
 // {Bn}, {Bn.x} and {Bn.y} read box n wherever a slot read goes
 const BOX_READ = /(\{\s*[Bb])([0-9]+)((?:\.[XxYy])?\s*\})/g
 const BOX_CODES = ["BM", "BR"]
