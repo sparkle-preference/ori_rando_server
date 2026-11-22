@@ -4,6 +4,7 @@ admin-only maintenance endpoints.
 import logging as log
 
 import collections
+import json
 import threading
 import time
 
@@ -14,7 +15,7 @@ import util
 from cache import Cache
 from models import Game, User
 from pickups import Pickup
-from util import BETA_VER, MIN_VER, NETPERF_TAG, VER, debug, param_flag, picks_by_type_generator
+from util import BETA_VER, MIN_VER, NETPERF_TAG, VER, param_flag, picks_by_type_generator
 from web.responses import json_resp, make_resp, text_resp
 
 bp = Blueprint("meta", __name__)
@@ -83,9 +84,11 @@ def version_json():
     })
 
 
-# page crash reports: beta/dev only (prod logging is metered), with a per-process budget
+# page crash reports, prod included: the per-process budget is what keeps metered logging cheap
 CLIENT_ERROR_MAX_BYTES = 16 * 1024
 CLIENT_ERROR_BUDGET = (20, 600)
+# what report_error sends; a rejection with no reason carries nothing else
+CLIENT_ERROR_KINDS = ("render", "window", "promise")
 _client_errors = collections.deque()
 _client_errors_lock = threading.Lock()
 
@@ -104,15 +107,28 @@ def _client_error_allowed(now=None):
 
 @bp.route('/client_error', methods=['POST'])
 def client_error():
-    if not (util.BETA_OF or debug()):
-        return make_resp("", 204)
     if (request.content_length or 0) > CLIENT_ERROR_MAX_BYTES:
         return make_resp("", 413)
+    # json only, as the page sends it: another site's form post can't carry that type
+    if not request.is_json:
+        return make_resp("", 204)
+    # a chunked body names no length: the read is what stops it
+    raw = request.stream.read(CLIENT_ERROR_MAX_BYTES + 1)
+    if len(raw) > CLIENT_ERROR_MAX_BYTES:
+        return make_resp("", 413)
+    try:
+        body = json.loads(raw or b"{}")
+    except (ValueError, RecursionError):
+        body = None
+    # anything else posted here takes no log line and no slot of the budget
+    if not (isinstance(body, dict) and (body.get("message") or body.get("stack") or body.get("kind") in CLIENT_ERROR_KINDS)):
+        return make_resp("", 204)
     if not _client_error_allowed():
         return make_resp("", 429)
-    body = request.get_json(silent=True) or {}
-    text = lambda k, n=2000: str(body.get(k) or "")[:n]
-    log.error("CLIENTERR app=%s ver=%s kind=%s url=%s\nmsg=%s\nua=%s\n%s\n%s",
-              text("app", 40), text("version", 40), text("kind", 40), text("url", 300),
-              text("message", 500), text("ua", 300), text("stack", 4000), text("componentStack", 4000))
+    # the page cuts by UTF-16 unit: half an emoji would fail the log write and lose the line
+    text = lambda k, n=2000: str(body.get(k) or "")[:n].encode("utf-8", "replace").decode("utf-8")
+    # a warning: an error entry on prod means the server itself broke
+    log.warning("CLIENTERR app=%s ver=%s kind=%s url=%s\nmsg=%s\nua=%s\n%s\n%s",
+                text("app", 40), text("version", 40), text("kind", 40), text("url", 300),
+                text("message", 500), text("ua", 300), text("stack", 4000), text("componentStack", 4000))
     return make_resp("", 204)
