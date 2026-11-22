@@ -84,7 +84,7 @@ def version_json():
     })
 
 
-# page crash reports, prod included: the per-process budget is what keeps metered logging cheap
+# page crash reports; the per-process budget keeps metered logging cheap
 CLIENT_ERROR_MAX_BYTES = 16 * 1024
 CLIENT_ERROR_BUDGET = (20, 600)
 # what report_error sends; a rejection with no reason carries nothing else

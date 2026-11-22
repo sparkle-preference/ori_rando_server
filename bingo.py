@@ -934,7 +934,7 @@ class BingoGenerator(object):
         if meta:
             if not lockout:
                 goals += [
-                    # internal names follow the line of symmetry: VertSym mirrors left-right (column C), HorizSym top-bottom (row 3)
+                    # names are baked into saved games: VertSym mirrors left-right (column C), HorizSym top-bottom (row 3)
                     BoolGoal("VertSym",
                     disp_name= "Left-right symmetric board",
                     help_lines = [
