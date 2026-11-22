@@ -9,84 +9,216 @@
     "Misc",
     "Plando"
   ],
-  "pending": [
-    {
-      "text": "The map's In Logic filter now works on Glitched seeds.",
-      "category": "Game",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "The map's In Logic filter works on seeds with custom logic (again).",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "The map's In Logic filter is stricter about Forlorn's keystone door, map altars, and lure paths in Enemy Rando.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "A seed that fails to load no longer leaves the previous seed's items behind.",
-      "category": "Game",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Co-op partners in Enemy Rando get the same enemy stats.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Keystone door warnings follow the Archipelago world's key tiers.",
-      "category": "Multiplayer",
-      "type": "fix",
-      "importance": "minor",
-      "tags": [
-        "Archipelago"
-      ]
-    },
-    {
-      "text": "RI and BM can do math, like RI|27000={20000}*2 - 1, and join comparisons with AND, OR and NOT. See [RI Format.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/RI%20Format.txt).",
-      "category": "Plando",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "New plando pickup BR moves a box, like BR|4=120.5,-40. {B4} reads whether box 4 is on, {B4.x} and {B4.y} where it is.",
-      "category": "Plando",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "The box editor's web page can lock boxes like the plando builder, and edit a seed's enemies.",
-      "category": "Plando",
-      "type": "feature",
-      "importance": "minor"
-    },
-    {
-      "text": "A broken RI, BM or BR in a box that fires every frame shows its error every 5 seconds instead of every frame.",
-      "category": "Plando",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "Negative bonus items now take away bonus skills, abilities and upgrades instead of granting them.",
-      "category": "Plando",
-      "type": "fix",
-      "importance": "minor"
-    },
-    {
-      "text": "A shared item after a message with a question mark in it now reaches your teammates.",
-      "category": "Plando",
-      "type": "fix",
-      "importance": "minor"
-    }
-  ],
+  "pending": [],
   "releases": [
+      {
+        "version": "4.9.15",
+        "date": "2026-11-21",
+        "announce": "dev",
+        "title": "5.0 Release Candidate",
+        "changes": [
+          {
+            "text": "Added experimental maps in Misty Woods, the Forlorn escape, and the Horu escape.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The Misty maps are divided into different layouts - the map defaults to showing you the layout that you currently have active, though you can cycle through them with a bind.",
+              "Misty pickups not reachable on the current layout will be dimmed and list the layouts you can find them on.",
+              "Please share any feedback you have on this feature in the discord!"
+            ]
+          },
+          {
+            "text": "The map's In Logic filter now works on Glitched seeds.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "On a Glades start, warping out before you have Spirit Flame leaves a temporary warp back to Glades.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "If you break the Blackroot boulder and reload or revisit the area without activating the Blackroot spirit well, the boulder will respawn to prevent a possible logic softlock.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Pulling the levers by the Blackroot teleporter door now explains that the door is already open.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Practice Mode: the editor page can reorder variants and item lists, and each variant can have its own briefing.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Improved the warping animation by adding some of the spirit well's warping effects to Ori.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The map's In Logic filter works on seeds with custom logic (again).",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The map's In Logic filter is stricter about Forlorn's keystone door, map altars, and lure paths in Enemy Rando.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "A seed that fails to load no longer leaves the previous seed's items behind.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Teleporting away just as a room's post-fight cutscene starts no longer leaves Ori stuck.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed an Enemy Rando issue where worms would stay underground and not surface to attack.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added several Standard paths that use the Blackroot teleporter fronkey to break the boulder.",
+            "category": "Logic",
+            "importance": "minor"
+          },
+          {
+            "text": "Added several more Blackroot logic updates from lifdoff!",
+            "category": "Logic",
+            "importance": "minor"
+          },
+          {
+            "text": "Ginso and Forlorn escape logic updates from Specht98!",
+            "category": "Logic",
+            "importance": "minor",
+            "sub": [
+              "Now that the Ginso escape can be safely retried, each Ginso escape pickup has its own paths, some of which can require warping out of the escape after grabbing the pickup.",
+              "Added paths to logically reach the Forlorn Escape Plant, including Expert and Master paths that don't need Glide."
+            ]
+          },
+          {
+            "text": "Added additional paths to reach Misty's Ability Cell, and the Gumon Seal no longer needs a movement skill (thanks :AsmPrgmC3!).",
+            "category": "Logic",
+            "importance": "minor"
+          },
+          {
+            "text": "The bingo symmetry squares are now called left-right and top-bottom symmetric, instead of horizontal and vertical. (Also, they no longer make incorrect claims about what horizontal and vertical symmetry are.)",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added the first three skill trees, the Water Vein event location, and some Defeat squares to the set of preferred starting squares in Discovery bingo.",
+            "category": "Bingo",
+            "importance": "minor"
+          },
+          {
+            "text": "Joining a bingo or multiworld game with an outdated randomizer now tells you to update your game.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "Co-op partners in Enemy Rando get the same enemy stats.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Multiworld games made before 5.0 now say they can't be continued instead of breaking.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Keystone door warnings follow the Archipelago world's key tiers.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": "The Archipelago panel no longer gets stuck on pending when you click Connect again.",
+            "category": "Multiplayer",
+            "type": "fix",
+            "importance": "minor",
+            "tags": [
+              "Archipelago"
+            ]
+          },
+          {
+            "text": ":AsmPrgmC3 has added convex and loop shapes for boxes. See [Boxes.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/Boxes.txt) for more info.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The plando editor and the box editor's web page can draw and reshape them: right-click a side to add a point, or a point to remove it.",
+              "The in-game box editor now has a proper GUI instead of a list of keyboard shortcuts."
+            ]
+          },
+          {
+            "text": "`RI` and `BM` can do math (e.g. `RI|27000={20000}*2 - 1`), including `sin()` and `cos()`, and join comparisons with `AND`, `OR` and `NOT`. `{T}` counts game ticks, and `{Pos.x}` and `{Pos.y}` read Ori's position. See [RI Format.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/RI%20Format.txt) for more info.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "New plando pickup type `BR` moves a box (e.g. `BR|4=120.5,-40` to move box 4 to `120.5,-40`). `{B4}` reads whether box 4 is on, `{B4.x}` and `{B4.y}` where it is.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "The box editor's web page can lock boxes like the plando builder, and edit a seed's enemies.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "New box flag \"unlit\" draws a box without lighting, which can be used to stop moving boxes from ghosting.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor"
+          },
+          {
+            "text": "A broken RI, BM or BR in a box that fires every frame shows its error every 5 seconds instead of every frame.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Negative bonus items now take away bonus skills, abilities and upgrades instead of granting them.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Objective text on the in-game map now shows your progress towards an active goal mode.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "minor"
+          }
+        ]
+      },
       {
         "version": "4.9.14.1",
         "date": "2026-11-12",
