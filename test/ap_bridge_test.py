@@ -2483,6 +2483,17 @@ class TestLinkRetarget(unittest.TestCase):
         self.assertTrue(self._session()._recheck_link(sock=None))
         self.assertEqual(self.persisted, [(942, "connected", None)])
 
+    def test_pending_waits_for_every_other_world(self):
+        other = type("B", (object,), {"authed": False})()
+        ap_bridge._bridges[(942, 2)] = other
+        self.addCleanup(ap_bridge._bridges.pop, (942, 2), None)
+        self.link.status = "pending"
+        self.assertTrue(self._session()._recheck_link(sock=None))
+        self.assertEqual(self.persisted, [])
+        other.authed = True
+        self.assertTrue(self._session()._recheck_link(sock=None))
+        self.assertEqual(self.persisted, [(942, "connected", None)])
+
     def test_new_room_pending_cycles_without_claiming_connected(self):
         self.link.status, self.link.port = "pending", 12345
         self.assertFalse(self._session()._recheck_link(sock=None))

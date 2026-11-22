@@ -1211,10 +1211,50 @@
      },
      {
       "reqs": [
+       "ChargeJump"
+      ],
+      "tags": [
+       "standardLure"
+      ]
+     },
+     {
+      "reqs": [
+       "Climb"
+      ],
+      "tags": [
+       "standardLure"
+      ]
+     },
+     {
+      "reqs": [
+       "WallJump"
+      ],
+      "tags": [
+       "standardLure"
+      ]
+     },
+     {
+      "reqs": [
+       "DoubleJump"
+      ],
+      "tags": [
+       "standardLure"
+      ]
+     },
+     {
+      "reqs": [
+       "Bash"
+      ],
+      "tags": [
+       "standardLure"
+      ]
+     },
+     {
+      "reqs": [
        "Free"
       ],
       "tags": [
-       "glitched"
+       "expertLure"
       ]
      }
     ],

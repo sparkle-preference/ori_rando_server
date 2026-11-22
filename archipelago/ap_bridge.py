@@ -1641,7 +1641,7 @@ class ApSession(object):
             # room retargeted: _run's loop re-reads the link and dials the new room
             log.info("APBRIDGE room changed gid=%s world=%s, cycling", self.gid, self.world)
             return False
-        if link.status == "pending":
+        if link.status == "pending" and _others_authed(self.gid, self.world):
             # a Connect against a live session: only a handshake writes "connected" otherwise
             with self.ctx():
                 _persist_status(self.gid, "connected", None)
@@ -1705,11 +1705,17 @@ class _Bridge(object):
         self.goal_event = threading.Event()
         self.hint_box = _HintBox()
         self.death_box = _DeathBox()
+        self.session = None
         self.thread = threading.Thread(target=self._run, daemon=True,
                                        name="ap-bridge-%s.%s" % (gid, world))
 
     def alive(self):
         return self.thread.is_alive()
+
+    @property
+    def authed(self):
+        session = self.session
+        return session is not None and session.authed
 
     def _run(self):
         gid, world = self.gid, self.world
@@ -1751,6 +1757,7 @@ class _Bridge(object):
                                     ctx=ndb_client.context, host=host, port=port,
                                     game_slots=names, hint_box=self.hint_box,
                                     death_box=self.death_box)
+                self.session = session
                 sock = None
                 started = monotonic()
                 try:
@@ -1778,6 +1785,7 @@ class _Bridge(object):
                         with ndb_client.context():
                             _persist_status(gid, "error", "world %s: %s" % (world, e))
                 finally:
+                    self.session = None
                     if sock is not None:
                         try:
                             sock.close()
@@ -1801,6 +1809,13 @@ def _alive(gid, world):
     with _reg_lock:
         b = _bridges.get((gid, world))
     return b is not None and b.alive()
+
+
+def _others_authed(gid, world):
+    """The link's status is per game: no other world's bridge is still dialing or backing off."""
+    with _reg_lock:
+        others = [b for (g, w), b in _bridges.items() if g == gid and w != world]
+    return all(b.authed for b in others)
 
 
 def ensure(game_id, link=None, wake_idle=True):
