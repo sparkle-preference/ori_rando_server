@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request
 
 from models import User
 from seedbuilder.seedparams import SeedGenParams
-from util import INDEX_TEMPLATE, template_vals
+from util import INDEX_TEMPLATE, debug, template_vals
 from web.responses import json_resp, text_resp
 
 bp = Blueprint("seedstats", __name__)
@@ -38,8 +38,9 @@ def seedstats_page():
 
 @bp.route('/seedstats/roll', methods=['POST'])
 def seedstats_roll():
-    if not User.get():
-        return text_resp("log in to roll seed stats", 401)
+    # a roll holds the one prod instance; a dev box has no one to starve
+    if not (User.is_admin() or debug()):
+        return text_resp("Seed stats are admin-only.", 403)
     body = request.get_json(silent=True) or {}
     settings = body.get("settings")
     seeds = body.get("seeds")

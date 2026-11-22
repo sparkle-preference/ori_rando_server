@@ -1,6 +1,11 @@
+import contextlib
 import unittest
 from unittest import mock
 
+import main
+import models
+import util
+from models import User
 from seedbuilder.seedparams import SeedGenParams
 from web import seedstats
 
@@ -36,6 +41,41 @@ class RollTestCase(unittest.TestCase):
     def test_settings_that_make_no_seed_are_refused(self):
         with self.assertRaises(ValueError):
             seedstats.roll(dict(SETTINGS, paths=[]), ["x"])
+
+
+class _FakeNdbClient(object):
+    def context(self):
+        return contextlib.nullcontext()
+
+
+class RollGateTestCase(unittest.TestCase):
+    """Rolling costs the one prod instance real time: admins only there, anyone on a dev box."""
+
+    def setUp(self):
+        self._client = models.client
+        models.client = _FakeNdbClient()
+        self.addCleanup(setattr, models, "client", self._client)
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "seedstats-test"
+        self.addCleanup(setattr, main.app, "secret_key", self._secret)
+        self.client = main.app.test_client()
+
+    def _roll(self, admin, dev):
+        with mock.patch.object(User, "is_admin", staticmethod(lambda: admin)), \
+             mock.patch.object(User, "get", staticmethod(lambda: object())), \
+             mock.patch.object(util, "is_debug", dev), \
+             mock.patch.object(seedstats, "roll", return_value=[]) as rolled:
+            resp = self.client.post("/seedstats/roll", json={"settings": {}, "seeds": ["a"]})
+        return resp.status_code, rolled.called
+
+    def test_a_logged_in_stranger_on_prod_rolls_nothing(self):
+        self.assertEqual(self._roll(admin=False, dev=False), (403, False))
+
+    def test_an_admin_on_prod_rolls(self):
+        self.assertEqual(self._roll(admin=True, dev=False), (200, True))
+
+    def test_a_dev_box_stays_open(self):
+        self.assertEqual(self._roll(admin=False, dev=True), (200, True))
 
 
 if __name__ == "__main__":
