@@ -347,7 +347,7 @@ class OpenBugRepros(unittest.TestCase):
     def test_the_tracker_reach_engine_finds_every_location_of_a_beatable_seed(self):
         # a generator change can un-strand these seeds; check them before reading a pass as a fix
         missed = {}
-        for argv in (["--preset", "casual", "--start", "Sorrow", "--seed", "s12"], ["--preset", "expert", "--seed", "b"]):
+        for argv in (["--preset", "casual", "--start", "Sorrow", "--seed", "s22"], ["--preset", "expert", "--seed", "b16"]):
             run = S.cli(argv)
             seed = S.Seed(run.seed())
             spawn = S.spawn_zone(seed.spawn()[1])
