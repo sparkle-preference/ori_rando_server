@@ -54,6 +54,16 @@ class RoutesTestCase(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.get_data(as_text=True), "Bridge Skip\nGlades warmup")
 
+    def test_order_file_puts_its_names_first(self):
+        for name in ("a", "B", "c", "d"):
+            _bfrp(os.path.join(self.tmp, name + ".bfrp"), {"segment.json": "{}"})
+        with open(os.path.join(self.tmp, practice.ORDER), "w", encoding="utf-8-sig", newline="\r\n") as f:
+            f.write("c\nD.bfrp\n\n missing \nc\n")
+        r = self.client.get("/netcode/practice")
+        self.assertEqual(r.get_data(as_text=True), "c\nd\na\nB")
+        self.assertIsNotNone(practice.default_path("d.bfrp"))
+        self.assertIsNone(practice.default_path("order.txt"))
+
     def test_serves_a_listed_file_by_its_escaped_name(self):
         _bfrp(os.path.join(self.tmp, "Bridge Skip (any%).bfrp"), {"segment.json": "{}", "save.sav": "x"})
         with open(os.path.join(self.tmp, "Bridge Skip (any%).bfrp"), "rb") as f:
@@ -83,7 +93,12 @@ class ShippedDefaultsTestCase(unittest.TestCase):
     """What gets dropped into practice_defaults/ must load in the game."""
 
     def files(self):
-        return [f for f in os.listdir(practice.DIR) if f != "README.md"]
+        return [f for f in os.listdir(practice.DIR) if f not in ("README.md", practice.ORDER)]
+
+    def test_order_names_only_shipped_files(self):
+        shipped = {name.lower() for name in practice.defaults()}
+        for name in practice.order():
+            self.assertIn(name.lower(), shipped, "order.txt names %r, which has no .bfrp here" % name)
 
     def test_only_bfrp_files(self):
         for f in self.files():

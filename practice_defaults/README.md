@@ -3,3 +3,4 @@ Default practice segments. Every .bfrp here is offered to players; the game down
 - A player who deletes or renames one never gets it again.
 - Changing a file here doesn't update the copies players already have.
 - Names can't contain dots. `test/practice_defaults_test.py` checks every file.
+- The game lists defaults after the player's own segments. `order.txt` (optional) sets their order: one name per line, then any it leaves out alphabetically.
