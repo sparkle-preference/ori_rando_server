@@ -2,6 +2,7 @@
 from test.strategies.base import examples
 
 import unittest
+from unittest import mock
 from urllib.parse import parse_qsl, quote, unquote
 
 from hypothesis import assume, given, note, settings, strategies as st
@@ -183,7 +184,9 @@ class OpenBugRepros(R.RouteCase):
         self.build_fixture()
         self.requester = R.OWNER
         before = self.snapshot()
-        self.get("/user/export")
+        # the route only answers on a beta build
+        with mock.patch.object(R.util, "BETA_OF", [5, 0, 0]):
+            self.get("/user/export")
         self.assertEqual(sorted(self.snapshot().keys() - before.keys(), key=str), [])
 
 
