@@ -23,6 +23,7 @@ import {Creatable, components, createFilter} from 'react-select';
 import {Alert, Button, ButtonGroup, Collapse,  Container, Row, Col, Input, InputGroup, InputGroupAddon, InputGroupText,
         Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap';
 import Control from 'react-leaflet-control';
+import MapLayers from './map_layers.js';
 import {Helmet} from 'react-helmet';
 import {FaSearch, FaEye, FaEyeSlash, FaLock, FaLockOpen} from 'react-icons/fa';
 
@@ -1936,6 +1937,7 @@ class PlandoBuiler extends React.Component {
                         <Button size="sm" color="disabled"><MousePos ref={el => this.mousePos = el}/></Button>
                     </div>
                     </Control>
+                    <MapLayers />
                     {formattingLegend}
 
                     <TileLayer url=' https://ori-tracker.firebaseapp.com/images/ori-map/{z}/{x}/{y}.png' noWrap='true' maxNativeZoom={TILE_MAX_ZOOM} maxZoom={TILE_MAX_ZOOM + 2}  />

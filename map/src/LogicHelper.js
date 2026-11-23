@@ -7,6 +7,7 @@ import {str_ids, picks_by_type, picks_by_area, PickupMarkersList, get_icon, getM
 import Select from 'react-select';
 import {Row, Input, Col, Container, Button, Collapse} from 'reactstrap';
 import Control from 'react-leaflet-control';
+import MapLayers from './map_layers.js';
 import Dropzone from 'react-dropzone'
 import {Helmet} from 'react-helmet';
 
@@ -512,6 +513,7 @@ class LogicHelper extends React.Component {
                         <Blabel className="p-2"><MousePos ref={el => this.mousePos = el} sep=", "/></Blabel>
                     </div>
                     </Control>
+                    <MapLayers />
                     <LayerGroup>
                         <PickupMarkersList markers={getPickupMarkers(this.state, this.selectPickup)} />
                     </LayerGroup>

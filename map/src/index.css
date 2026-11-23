@@ -26,6 +26,53 @@ body, #root {
   background: rgb(18, 18, 18);
 }
 
+.layout-cycle {
+  display: flex;
+  align-items: center;
+  transition: opacity .15s;
+}
+
+.layout-cycle.away {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* two of bootstrap's small buttons stacked would stand taller than the zoom buttons */
+.layout-cycle .btn-group-vertical > .btn {
+  padding: 3px 9px;
+  font-size: .75rem;
+  line-height: 1.3;
+}
+
+.layout-cycle .layout-label {
+  display: inline-grid;
+  margin-left: 3px;
+  padding: 4px 9px;
+  font-size: .875rem;
+  font-weight: 400;
+  line-height: 1.3;
+  cursor: default;
+}
+
+.layout-label > * {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+
+.layout-label > i {
+  visibility: hidden;
+  font-style: normal;
+}
+
+/* a layout swap dissolves; leaflet's zoom rule is restated so the pictures still zoom with the map */
+img.layout-picture {
+  transition: opacity .35s;
+}
+
+.leaflet-zoom-anim img.layout-picture {
+  transition: transform .25s cubic-bezier(0, 0, .25, 1), opacity .35s;
+}
+
 .controls {
   width: 450px;
   height: 100%;

@@ -7,6 +7,7 @@ import {picks_by_type, PickupMarkersList, get_icon, getMapCrs, TILE_MAX_ZOOM, hi
 import Select from 'react-select';
 import {Button, Collapse, Container, Row, Col, Input, UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem} from 'reactstrap';
 import Control from 'react-leaflet-control';
+import MapLayers from './map_layers.js';
 import {Helmet} from 'react-helmet';
 
 const paths = Object.keys(presets);
@@ -476,6 +477,7 @@ toggleLogic = () => {this.setState({display_logic: !this.state.display_logic})};
 						<Button size="sm" color="disabled"><MousePos ref={el => this.mousePos = el}/></Button>
 					</div>
 					</Control>
+					<MapLayers />
 					{pickup_markers}
 					{player_markers}
 			    </Map>
