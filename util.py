@@ -26,10 +26,10 @@ def utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-VER = [4, 9, 15]
+VER = [5, 0, 0]
 # while 4.9.x is the beta, all three move together: an older beta build is not supported
-MIN_VER = [4, 9, 15]
-BETA_VER = [4, 9, 15]
+MIN_VER = [5, 0, 0]
+BETA_VER = [5, 0, 0]
 VERSION = "%s.%s.%s" % tuple(VER)
 
 # 4.9.x is the 5.0 beta: numeric on the wire, "5.0 beta vN" on the page. Each
@@ -162,7 +162,7 @@ def version_check(version):
 OLD_MULTIWORLD = "This multiworld game was made before 5.0 and can't be continued. Please roll a new one."
 
 # dlls before 4.9.9 ignore tick field 10 (AP items past the slot list), so AP rooms hold their own floor
-AP_MIN_DLL = [4, 9, 9]
+AP_MIN_DLL = [5, 0, 0]
 
 def version_at_least(version, floor):
     """Dotted version string >= floor (a [major, minor, patch] list).

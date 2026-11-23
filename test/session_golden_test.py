@@ -624,17 +624,17 @@ class TestApRoutes(SessionTestCase):
 
     def test_connect_refuses_stale_dlls(self):
         # a known version below AP_MIN_DLL closes the room
-        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.9.8"),
-                                       FakeVersionedPlayer(2, "4.9.9")])
+        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.9.15"),
+                                       FakeVersionedPlayer(2, "5.0.0")])
         status, body = netcode.ap_connect(1310, {"host": "ap.example", "port": "38281"})
         self.assertEqual(status, 409)
-        self.assertIn("P1 last played on 4.9.8", body)
+        self.assertIn("P1 last played on 4.9.15", body)
         self.assertNotIn("P2", body)
         self.assertEqual(self.links, {})
 
     def test_connect_allows_current_and_unlaunched_dlls(self):
         # no version yet = hasn't launched; refusing would deadlock the flow
-        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "4.9.9"),
+        self.game = FakeApGame(roster=[FakeVersionedPlayer(1, "5.0.0"),
                                        FakeVersionedPlayer(2, None),
                                        FakeVersionedPlayer(3, "5.0")])
         self.assertEqual(netcode.ap_connect(1311, {"host": "ap.example", "port": "38281"})[0], 200)
