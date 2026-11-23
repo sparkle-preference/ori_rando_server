@@ -5,7 +5,7 @@ import Control from 'react-leaflet-control';
 import {Badge, Button, ButtonGroup} from 'reactstrap';
 
 // the pictures the game fetches; the branch moves when the client's does
-const SOURCE = "https://cdn.jsdelivr.net/gh/sparkle-preference/ori_rando_server@4.3/map_layers/";
+const SOURCE = "https://cdn.jsdelivr.net/gh/sparkle-preference/ori_rando_server@master/map_layers/";
 const SETS = ["misty", "forlorn_escape", "horu_escape"];
 // hides the tiles' own Misty picture, so it sits where the tiles draw Misty, not at world coords
 const COVER = "/static/map_layers/misty_cover.png";

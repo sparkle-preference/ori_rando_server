@@ -39,7 +39,7 @@ folder if it is not there). Overwrite the old version when you update, and do no
 You can check it took by launching `ArchipelagoLauncher` and generating; the generator log lists
 `Ori DE Rando` with its item and location counts.
 
-While Ori DE Rando is in closed testing, the apworld build and the seeds have to match. If they do not, the
+The apworld build and the seeds have to match. If they do not, the
 generator will tell you which side to update — see [Troubleshooting](#troubleshooting).
 
 ## 2. Roll the Ori seed(s) on bf.orirando.com

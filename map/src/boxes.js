@@ -29,7 +29,7 @@ const DEPTH_RANGES = {renderdepth: [-99, 399], parallaxdepth: [-19, 4979]}
 const BOX_TOMBSTONE = "tombstone"
 const BOX_TOMBSTONE_LINE = "BX|tombstone|0,0,0,0"
 const BOX_COLORS = {goal: "#8fe3a0", kill: "#ff6b6b", solid: "#9aa0aa", item: "#40c0ff", ritem: "#7fd8ff"}
-const BOXES_TXT = "https://github.com/sparkle-preference/OriDERandomizer/blob/4.3/Boxes.txt"
+const BOXES_TXT = "https://github.com/sparkle-preference/OriDERandomizer/blob/master/Boxes.txt"
 const HEX_COLOR = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/i
 
 const split_flags = (text) => text.split(",").map(f => f.trim()).filter(f => f)
