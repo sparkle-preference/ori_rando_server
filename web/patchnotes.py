@@ -198,24 +198,41 @@ def announce_embed(release, base, everything=False):
     # the dev channel takes the whole list: it is the audience that wants the
     # minor entries, and a dev-only release is often all minor
     shown = [c for c in release["changes"] if everything or c["importance"] == "major"]
-    lines = []
+    head = []
+    if release.get("disclaimer"):
+        head.append("-# %s" % markdown_links(release["disclaimer"], base))
     note = site_only_note(release["version"])
     if note:
-        lines.append("-# *%s*" % note)  # -# is discord's subtext
+        head.append("-# *%s*" % note)  # -# is discord's subtext
     if release.get("headline"):
-        lines.append(markdown_links(release["headline"], base))
-    for c in shown:
-        lines.append("- %s" % markdown_links(c["text"], base))
-        for s in c.get("sub", []):
-            lines.append("  - %s" % markdown_links(s, base))
-    if not shown and not release.get("headline"):
-        lines.append("Small fixes only - see the full notes.")
+        head.append(markdown_links(release["headline"], base))
+
+    def body_of(changes, with_sub):
+        lines = list(head)
+        for c in changes:
+            text = c["text"]
+            if not with_sub and c.get("sub") and text.endswith(":"):
+                text = text[:-1]  # the colon introduced a list this body leaves out
+            lines.append("- %s" % markdown_links(text, base))
+            for s in c.get("sub", []) if with_sub else []:
+                lines.append("  - %s" % markdown_links(s, base))
+        if not changes and not release.get("headline"):
+            lines.append("Small fixes only - see the full notes.")
+        return "\n".join(lines)
+
     title = "%s%s" % (display_version(release["version"]),
                       " - %s" % release["title"] if release.get("title") else "")
     # discord truncates a description past 4096 rather than rejecting it, but
     # cutting it here keeps the "read the rest" link meaningful
-    body = "\n".join(lines)
+    body = body_of(shown, True)
     if len(body) > 3900:
+        body = body_of(shown, False)
+    majors = [c for c in shown if c["importance"] == "major"]
+    if len(body) > 3900 and majors and len(majors) < len(shown):
+        # the dev channel's last step before the cut: the majors alone, marked as partial
+        body = body_of(majors, False) + "\n- ..."
+    if len(body) > 3900:
+        # the head lines lead the body, so the cut never reaches them
         body = body[:3900].rsplit("\n", 1)[0] + "\n- ..."
     # the dev channel reads every entry, so its link opens the page unfolded to match
     page = "/patchnotes?all=1" if everything else "/patchnotes"
@@ -338,6 +355,8 @@ def patchnotes_feed():
             for c in major)
         summary = "<p>%s</p>" % rich(r["headline"]) if r.get("headline") else ""
         content = "%s<ul>%s</ul>" % (summary, items) if items else (summary or "<p>Small fixes only.</p>")
+        if r.get("disclaimer"):
+            content = "<p><small>%s</small></p>%s" % (rich(r["disclaimer"]), content)
         title = "%s%s" % (display_version(r["version"]),
                           " - %s" % r["title"] if r.get("title") else "")
         url = "%s/patchnotes#%s" % (base, r["version"])

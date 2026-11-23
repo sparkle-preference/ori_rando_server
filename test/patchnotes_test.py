@@ -32,6 +32,16 @@ def assert_change_well_formed(case, c, where):
     case.assertIsInstance(c.get("sub", []), list)
 
 
+def assert_release_well_formed(case, release):
+    where = release["version"]
+    case.assertRegex(release["date"], r"^\d{4}-\d{2}-\d{2}$", where)
+    case.assertIn(release.get("announce", "all"), ("all", "dev", "none"), where)
+    case.assertIsInstance(release.get("disclaimer", ""), str, where)
+    case.assertTrue(release["changes"], where)
+    for c in release["changes"]:
+        assert_change_well_formed(case, c, where)
+
+
 class PatchNotesDataTestCase(unittest.TestCase):
     def test_releases_are_newest_first_and_unique(self):
         versions = [r["version"] for r in DOC["releases"]]
@@ -41,12 +51,14 @@ class PatchNotesDataTestCase(unittest.TestCase):
 
     def test_every_change_is_well_formed(self):
         for release in DOC["releases"]:
-            where = release["version"]
-            self.assertRegex(release["date"], r"^\d{4}-\d{2}-\d{2}$", where)
-            self.assertIn(release.get("announce", "all"), ("all", "dev", "none"), where)
-            self.assertTrue(release["changes"], where)
-            for c in release["changes"]:
-                assert_change_well_formed(self, c, where)
+            assert_release_well_formed(self, release)
+
+    def test_a_disclaimer_is_optional_text(self):
+        release = dict(DOC["releases"][0], disclaimer="AI was involved, [more](/aiuse)")
+        assert_release_well_formed(self, release)
+        for bad in (["a list"], {"text": "x"}, 1):
+            with self.subTest(bad=bad), self.assertRaises(AssertionError):
+                assert_release_well_formed(self, dict(release, disclaimer=bad))
 
     def test_no_version_has_a_fifth_part(self):
         # the 3.x notes predate the third number; a fourth is a site-only release
@@ -101,6 +113,39 @@ class PendingNotesTestCase(unittest.TestCase):
         client = main.app.test_client()
         for url in ("/patchnotes.json", "/patchnotes.xml"):
             self.assertNotIn(self.MARKER, client.get(url).get_data(as_text=True), url)
+
+
+class DisclaimerFeedTestCase(unittest.TestCase):
+    """The Atom entry leads with the disclaimer; /patchnotes.json hands it over raw."""
+
+    DISCLAIMER = "(Made with tools. Learn more [here](/aiuse))"
+
+    def setUp(self):
+        self.doc = pn.patchnotes_doc()
+        newest = dict(self.doc["releases"][0], disclaimer=self.DISCLAIMER)
+        pn._patchnotes_cache = dict(self.doc, releases=[newest] + self.doc["releases"][1:])
+        self._client = models.client
+        models.client = _FakeNdbClient()
+        self._secret = main.app.secret_key
+        main.app.secret_key = main.app.secret_key or "patchnotes-disclaimer"
+        self._canon, util.CANONICAL_HOST = util.CANONICAL_HOST, ""
+
+    def tearDown(self):
+        util.CANONICAL_HOST = self._canon
+        main.app.secret_key = self._secret
+        models.client = self._client
+        pn._patchnotes_cache = self.doc
+
+    def test_the_feed_entry_opens_with_it_in_small_text(self):
+        feed = main.app.test_client().get("/patchnotes.xml", base_url="https://x").get_data(as_text=True)
+        content = feed.split("<content type=\"html\">", 1)[1]
+        self.assertTrue(content.startswith(escape(
+            '<p><small>(Made with tools. Learn more <a href="https://x/aiuse">here</a>)</small></p>')),
+            content[:200])
+
+    def test_the_json_passes_it_through(self):
+        got = json.loads(main.app.test_client().get("/patchnotes.json").get_data(as_text=True))
+        self.assertEqual(got["releases"][0]["disclaimer"], self.DISCLAIMER)
 
 
 class LatestNoteVersionTestCase(unittest.TestCase):
@@ -196,6 +241,73 @@ class AnnounceEmbedTestCase(unittest.TestCase):
         minor_only = dict(site, changes=[c for c in site["changes"] if c["importance"] == "minor"])
         self.assertIn("Small fixes only", pn.announce_embed(minor_only, "https://x")["description"])
 
+    def _long(self, n, text_len, sub_len):
+        return dict(self.RELEASE, version="9.9.9.1", headline="The headline.", changes=[
+            {"text": "Change %02d %s" % (i, "t" * text_len), "category": "Game",
+             "importance": "major", "sub": ["detail %02d %s" % (i, "s" * sub_len)]}
+            for i in range(n)])
+
+    def test_an_overlong_body_drops_its_sub_lines_before_it_cuts(self):
+        release = self._long(20, 20, 300)
+        body = pn.announce_embed(release, "https://x")["description"]
+        for c in release["changes"]:
+            self.assertIn(c["text"], body)
+        self.assertNotIn("detail", body)
+        self.assertFalse(body.endswith("- ..."), body[-40:])
+        self.assertTrue(body.startswith("-# *(this is a site-only update."), body[:60])
+        self.assertIn("The headline.", body)
+
+    def test_a_body_still_too_long_without_sub_lines_is_cut(self):
+        body = pn.announce_embed(self._long(60, 100, 10), "https://x")["description"]
+        self.assertNotIn("detail", body)
+        self.assertTrue(body.endswith("\n- ..."), body[-40:])
+        self.assertLessEqual(len(body), 3900 + len("\n- ..."))
+        self.assertIn("Change 00", body)
+
+    def test_a_line_that_lost_its_sub_lines_loses_its_colon(self):
+        release = self._long(20, 20, 300)
+        release["changes"][0]["text"] = "Several fixes:"
+        release["changes"][1] = {"text": "No list here:", "category": "Game", "importance": "major"}
+        body = pn.announce_embed(release, "https://x")["description"]
+        self.assertIn("- Several fixes\n", body)
+        self.assertIn("- No list here:\n", body)
+        # a body that keeps its sub-lines keeps the colon that introduces them
+        short = dict(release, changes=release["changes"][:1])
+        self.assertIn("- Several fixes:\n  - detail 00", pn.announce_embed(short, "https://x")["description"])
+
+    def test_a_dev_body_too_long_for_everything_lists_the_majors(self):
+        release = self._long(10, 20, 10)
+        release["changes"] += [{"text": "Minor %02d %s" % (i, "m" * 100), "category": "Game", "importance": "minor"}
+                               for i in range(60)]
+        body = pn.announce_embed(release, "https://x", everything=True)["description"]
+        for c in release["changes"][:10]:
+            self.assertIn(c["text"], body)
+        self.assertNotIn("Minor", body)
+        self.assertNotIn("detail", body)
+        self.assertTrue(body.endswith("\n- ..."), body[-40:])
+        self.assertLessEqual(len(body), 3900)
+        self.assertIn("The headline.", body)
+
+    def test_a_long_all_minor_dev_body_is_still_cut(self):
+        release = dict(self.RELEASE, changes=[
+            {"text": "Minor %02d %s" % (i, "m" * 100), "category": "Game", "importance": "minor"} for i in range(60)])
+        body = pn.announce_embed(release, "https://x", everything=True)["description"]
+        self.assertIn("Minor 00", body)
+        self.assertTrue(body.endswith("\n- ..."), body[-40:])
+
+    DISCLAIMER = "(Made with tools. Learn more [here](/aiuse))"
+
+    def test_a_disclaimer_is_the_first_line_as_subtext(self):
+        body = pn.announce_embed(dict(self.RELEASE, disclaimer=self.DISCLAIMER), "https://x")["description"]
+        self.assertTrue(body.startswith("-# (Made with tools. Learn more [here](https://x/aiuse))\n"), body)
+
+    def test_a_disclaimer_survives_the_sub_line_drop_and_the_cut(self):
+        for release in (self._long(20, 20, 300), self._long(60, 100, 10)):
+            body = pn.announce_embed(dict(release, disclaimer=self.DISCLAIMER), "https://x")["description"]
+            self.assertNotIn("detail", body)
+            self.assertTrue(body.startswith("-# (Made with tools."), body[:60])
+            self.assertIn("site-only update", body)
+
 
 class AnnounceChannelSelectionTestCase(unittest.TestCase):
     """announce_patchnotes(channels=...) is what keeps catching one channel up
@@ -283,7 +395,7 @@ class LinkTestCase(unittest.TestCase):
 
     def test_every_link_in_the_notes_is_one_we_render(self):
         for release in DOC["releases"]:
-            texts = [release.get("headline") or ""]
+            texts = [release.get("headline") or "", release.get("disclaimer") or ""]
             for c in release["changes"]:
                 texts.append(c["text"])
                 texts.extend(c.get("sub", []))

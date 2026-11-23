@@ -158,13 +158,12 @@ const Release = ({release, everything, latest, onShowEverything}) => {
                 {latest ? <Badge color="primary" className="mr-2">Latest</Badge> : null}
                 {release.title ? <span className="mr-2 font-weight-normal">{release.title}</span> : null}
                 <small className="ml-auto text-muted font-weight-normal">{release.date}</small>
+                {release.disclaimer ? <span className="pn-note text-muted">{rich(release.disclaimer)}</span> : null}
+                {siteUpdate ? (
+                    <span className="pn-note text-muted">(this is a site-only update. {dllVersion} is still the latest dll)</span>
+                ) : null}
             </CardHeader>
             <CardBody>
-                {siteUpdate ? (
-                    <p className="text-muted mb-2">
-                        <small><i>(this is a site-only update. {dllVersion} is still the latest dll)</i></small>
-                    </p>
-                ) : null}
                 {release.headline ? <p>{rich(release.headline)}</p> : null}
                 {!anyVisible ? (
                     <p className="text-muted mb-0">
