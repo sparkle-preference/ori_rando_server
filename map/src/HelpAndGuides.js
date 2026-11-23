@@ -773,29 +773,30 @@ export default class HelpAndGuides extends React.Component {
                     Access your practice segments by selecting PRACTICE MODE from the main menu.
                 </CardText>
                 <CardText>
-                    To make a new segment, get to the spot you want to practice in a normal game and press Alt+M. Then pick it from the practice menu, start it, and press escape to open the editor.
+                    To make a new segment, get to the spot you want to practice in a normal game and press Alt+M. Then pick it from the practice menu and start it: a new segment has no ending yet, so it opens right in the editor.
                 </CardText>
                 <CardText>
                     <b>Editing.</b> Pause a running segment and choose EDIT PRACTICE SEGMENT: the world freezes and you can draw boxes with the mouse.
-                    1-4 picks the flavor, Z to undo, X to delete a box under the cursor, WASD to pan, Enter to save and test.
+                    1-5 picks the flavor, Z to undo, X to delete a box under the cursor, WASD to pan, Enter to save and test. Most buttons show their hotkey.
                     <ul>
                         <li>A <b>Goal</b> box marks the finish line.</li>
                         <li>A <b>Kill</b> box does about what you'd expect.</li>
                         <li>An <b>Item</b> box grants a configurable pickup (like a message! Useful if you want to make tutorials).</li>
                         <li>A <b>Solid</b> box creates solid terrain if you want to set up hyperspecific movement gauntlets.</li>
+                        <li>An <b>Unsafe</b> box marks a spot where the game can't be saved.</li>
                     </ul>
                     Boxes also take extra flags like damage=1 or unsafe (see <a target="_blank" rel="noopener noreferrer" href={BOXES_TXT}>Boxes.txt</a>).
                 </CardText>
                 <CardText>
-                    <b>The Advanced Editor.</b> Press 5 in edit mode and the advanced editor opens in your browser. Use it to configure the segment's name,
-                    end condition, boxes, shuffle groups, variants and ghosts. Export to the game to try out your changes.
+                    <b>The Advanced Editor.</b> Click Open in Browser in edit mode and the advanced editor opens in your browser. Use it to configure the segment's name,
+                    end condition, boxes, shuffle groups, variants and ghosts. Save to game to try out your changes. Check Reset on death there and any death restarts the run.
                 </CardText>
                 <CardText>
                     <b>Ending a run.</b> You can configure multiple ending conditions (a collision box, specific pickup locations, finding specific items...). A practice segment ends when you complete all the conditions.
                     Finishing shows your time and compares it to your best and average times, plus the run's deaths and time spent in menus.
                 </CardText>
                 <CardText>
-                    <b>Ghosts.</b> Once you've completed a segment at least once, you'll race against your ghost! Your fastest and most recent ghosts are saved automatically - additionally, you can pin a run you want to race against after finishing.
+                    <b>Ghosts.</b> Once you've completed a segment at least once, you'll race against your ghost! Your fastest and most recent ghosts are saved automatically - additionally, you can pin a run you want to race against after finishing. A segment can also carry a demo ghost from its author, which races in its own color until you have a ghost of your own.
                 </CardText>
                 <CardText>
                     <b>Variants.</b> If you want to practice the same part of the game with different sets of items, use variants to create multiple versions of the same segment!

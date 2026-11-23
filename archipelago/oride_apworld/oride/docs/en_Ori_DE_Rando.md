@@ -40,14 +40,15 @@ Items are the Ori pickups from the categories you chose to export. What can appe
 * **World Events** — Water Vein, Gumon Seal, Sunstone, Clean Water, Wind Restored, Warmth Returned, and their
   shard/fragment forms in the seed modes that use them
 * **Cells** — Health Cell, Energy Cell, Ability Cell
-* **Stones** — Mapstone, and the per-area keystones of Keysanity seeds
+* **Stones** — Keystone and Mapstone, or the per-area keystones of Keysanity seeds
 * **Upgrades** — the bonus pickups: Attack Upgrade, Health/Energy Regeneration, Mega Health, Mega Energy, the
   bonus skills, and the rest of the bonus pools
 * **Spirit light** — an exact amount per pickup, which the generator also uses to keep each world's
   give-and-take balanced
 
-Generic Keystones are never exported: they are consumable door currency, and the seed's own supply rules
-guarantee you can always open the door in front of you.
+Keystone doors have a set order in an Archipelago seed (Keysanity seeds aside). At a door ahead of its
+turn the game warns you and names the next door in sequence: opening doors out of order can leave the
+multiworld uncompletable.
 
 ## Which items can appear in other players' worlds?
 
