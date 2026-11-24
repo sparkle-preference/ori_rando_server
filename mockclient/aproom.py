@@ -91,11 +91,12 @@ class ApRoom(object):
             raise RuntimeError("generation made no multidata:\n%s" % gen.stdout[-2000:])
         self.zip_name = zips[0]
 
-        up = self._run(["run", "-d", "--name", self.name, "-p", "%d:%d" % (self.port, ROOM_PORT)]
+        up = self._run(["run", "-d", "--name", self.name, "-p", "%d:%d" % (self.port, ROOM_PORT),
+                        "-e", "PYTHONUNBUFFERED=1"]
                        + self._mount("output", "/app/output")
                        + ["--entrypoint", "python", IMAGE, "MultiServer.py",
                           # the default bind is unreachable through a published port
-                          "--host", "0.0.0.0", "--port", str(ROOM_PORT),
+                          "--host", "0.0.0.0", "--port", str(ROOM_PORT), "--log_network",
                           "--disable_save", "/app/output/%s" % self.zip_name])
         if up.returncode:
             raise RuntimeError("could not host the room: %s" % up.stderr[-2000:])
@@ -103,6 +104,9 @@ class ApRoom(object):
         return self
 
     def __exit__(self, *exc):
+        # kept for CI's failure artifact: the room's side of every message
+        with open(os.path.join(os.path.dirname(__file__), "aproom_%s.log" % self.name), "w", newline="\n") as f:
+            f.write(self.logs())
         self._run(["rm", "-f", self.name])
         shutil.rmtree(self.dir, ignore_errors=True)
 

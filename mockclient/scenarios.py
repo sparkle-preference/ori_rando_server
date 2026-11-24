@@ -290,8 +290,6 @@ def ap_real_room(stack):
         j.equal("ap/connect took the room", r.status_code, 200)
         j.check("the room says our slot joined", room.wait_for(" has joined.", timeout=60),
                 room.logs()[-600:])
-        # the room's stdout is block-buffered in the container, so this only reads back
-        # once something later has flushed it
         j.check("a real room generated from the apworld we ship",
                 room.wait_for("data package for game Ori DE Rando", timeout=30),
                 "the room never loaded our datapackage")
@@ -511,13 +509,16 @@ def ap_enemy_rando(stack):
                           data={"host": room.host, "port": str(room.port), "password": ""}, timeout=90)
         j.equal("ap/connect took the room", r.status_code, 200)
         j.check("the room says our slot joined", room.wait_for(" has joined.", timeout=60), room.logs()[-600:])
+        # the download gate wants every world's scout row
         deadline = time.time() + 60
         while time.time() < deadline:
             status = _ap_status(stack, rolled.game_id)
-            if status.get("status") == "connected" and status.get("names_resolved") == status.get("names_total"):
+            total, done = status.get("names_total") or [], status.get("names_resolved") or []
+            if status.get("status") == "connected" and len(total) == 2 and done == total:
                 break
             time.sleep(0.5)
         j.equal("the bridge reports connected", status.get("status"), "connected")
+        j.equal("both worlds resolved their names", len(total), 2)
         j.check("no error on the link", not status.get("last_error"), repr(status.get("last_error")))
         # the download opens once the room is connected
         j.check("the seed carries the rolls", "//EnemyRolls=" in rolled.seed_text(1), rolled.seed_text(1)[:200])
