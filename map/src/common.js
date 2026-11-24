@@ -158,9 +158,12 @@ function pickup_name(code, id) {
             if(eq < 0)
                 return "Box " + s.trim() + ": back to its spot"
             let lhs = s.slice(0, eq).trim(), op = /[+-]$/.test(lhs) ? lhs.slice(-1) : ""
-            let xy = s.slice(eq + 1).split(",").map(v => v.trim()).join(", ")
+            let [x, y, r] = [0, 1, 2].map(i => (s.slice(eq + 1).split(",")[i] || "").trim() || "0")
             let n = op ? lhs.slice(0, -1).trim() : lhs
-            return "Box " + n + (op === "" ? ": move to " + xy : op === "+" ? ": move by " + xy : ": move by -(" + xy + ")")
+            if(op && x === "0" && y === "0" && r !== "0")
+                return "Box " + n + ": turn by " + (op === "-" ? "-(" + r + ")" : r) + "°"
+            let turn = r === "0" ? "" : op === "" ? ", turned " + r + "°" : op === "+" ? ", turning " + r + "°" : ", turning -(" + r + ")°"
+            return "Box " + n + (op === "" ? ": move to " : ": move by ") + (op === "-" ? "-(" + x + ", " + y + ")" : x + ", " + y) + turn
         }
         case "AP":
             return id;   // a foreign game's item, named by the room that sent it

@@ -467,6 +467,8 @@ test("BR names its box like BM, and {Bn} reads anywhere follow their boxes", () 
     assert.deepEqual(out.problems, [])
     assert.deepEqual(out.pickups, ["BR|2=1,2", "BR|1+=0.5,{B2.y}", "RI|8000={B2}+{b1.X}", "SH|box at {B2.x}",
                                    "MU|BR/2-=1,1/SH/{B1}", "BR|0"])
+    let more = compact_boxes(HOLEY(), [here("BR|4={B4.xi},{b4.YI},{B2.r}+{Bash}"), here("SH|{B4.R} {B4.z}")])
+    assert.deepEqual(more.pickups, ["BR|2={B2.xi},{b2.YI},{B1.r}+{Bash}", "SH|{B2.R} {B4.z}"])
 })
 
 test("a box's own give is renumbered for its reads too", () => {
