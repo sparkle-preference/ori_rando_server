@@ -14,6 +14,7 @@ import PatchNotes from './PatchNotes';
 import Bingo from './Bingo';
 import AIUse from './AIUse';
 import SeedStats from './SeedStats';
+import TwitchPrivacy from './TwitchPrivacy';
 
 const mods = {
     ItemTracker,
@@ -27,7 +28,8 @@ const mods = {
     PatchNotes,
     Bingo,
     AIUse,
-    SeedStats
+    SeedStats,
+    TwitchPrivacy
 };
 
 // Shows what broke, reports it, and offers two ways back in. Plain buttons: the theme may

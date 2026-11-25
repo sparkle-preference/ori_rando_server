@@ -78,3 +78,10 @@ def trickrepo():
 def ai_disclosure():
     template_values = template_vals("AIUse", "AI Disclosure", User.get())
     return render_template(INDEX_TEMPLATE, **template_values)
+
+
+@bp.route('/twitch/privacy')
+@bp.route('/twitch/terms')
+def twitch_privacy():
+    template_values = template_vals("TwitchPrivacy", "Ori Rando Bingo: privacy and terms", User.get())
+    return render_template(INDEX_TEMPLATE, **template_values)
