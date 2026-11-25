@@ -1,4 +1,5 @@
 import time
+import hashlib
 import heapq
 import os
 from cachetools import TLRUCache, Cache as CacheToolsCache
@@ -7,6 +8,17 @@ import push
 from util import debug
 from pymemcache.client.base import PooledClient
 from pymemcache import serde
+
+_logic_key = None
+
+
+def logic_key():
+    """The logic cache key names areas.ori's content, so a deploy that changes it never reads the old one."""
+    global _logic_key
+    if _logic_key is None:
+        with open("seedbuilder/areas.ori", "rb") as f:
+            _logic_key = "CURRENT_LOGIC." + hashlib.sha1(f.read()).hexdigest()[:12]
+    return _logic_key
 
 
 # a saturated pool raises on writes, so it must cover gunicorn's --threads plus background threads
@@ -219,11 +231,11 @@ class MemcachedCache(object):
         self.memcache.delete(key="%s.marks" % gid)
 
     def get_areas(self):
-        areas = self.memcache_get(key="CURRENT_LOGIC")
+        areas = self.memcache_get(key=logic_key())
         if not areas:
             with open("seedbuilder/areas.ori", 'r') as f:
                 areas = f.read()
-            self.memcache.set(key="CURRENT_LOGIC", value=areas, expire=3600)
+            self.memcache.set(key=logic_key(), value=areas, expire=3600)
         return areas
 
     def get_output(self, gpid):
@@ -460,11 +472,11 @@ class PythonCache(object):
         self.cache.pop("%s.marks" % gid, None)
 
     def get_areas(self):
-        areas = self.cache.get(key="CURRENT_LOGIC")
+        areas = self.cache.get(key=logic_key())
         if not areas:
             with open("seedbuilder/areas.ori", 'r') as f:
                 areas = f.read()
-            self.cache.set(key="CURRENT_LOGIC", value=areas, time=3600)
+            self.cache.set(key=logic_key(), value=areas, time=3600)
         return areas
 
     def get_output(self, gpid):
