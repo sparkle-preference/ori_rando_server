@@ -13,6 +13,60 @@
   "pending": [],
   "releases": [
       {
+        "version": "5.0.1",
+        "date": "2026-11-24",
+        "announce": "all",
+        "changes": [
+          {
+            "text": "Enemy rando slimes no longer crawl off sharp edges into the air.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "The Blackroot boulder no longer respawns while you're activating the Blackroot teleporter.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "major"
+          },
+          {
+            "text": "Some enemy rando placement fixes.",
+            "category": "Seed Generator",
+            "type": "fix",
+            "importance": "minor",
+            "sub": [
+              "Splitters no longer spawn in the Valley three bird room.",
+              "The fronkey by the Valley entry stomp floor only becomes an enemy that can break it.",
+              "The banelings needed to break walls on the way to Forlorn and Horu are no longer randomized."
+            ]
+          },
+          {
+            "text": "Fixed an error message that could show at the start of a new bingo game.",
+            "category": "Bingo",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added box rotation to `BR`: a third value is the angle in degrees (e.g. `BR|4=120.5,-40,90`)",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "`BR` and `{B4.x}`/`{B4.y}` now go by a box's middle instead of its top-left corner. A value left out counts as 0, so `BR|4+=,,5` turns box 4 five degrees."
+            ]
+          },
+          {
+            "text": "New reads: `{B4.xi}` and `{B4.yi}` for where box 4 starts, `{B4.r}` for its angle, and `{[Jump]}`, which is 1 while Jump is held.",
+            "category": "Plando",
+            "type": "feature",
+            "importance": "minor",
+            "sub": [
+              "The other actions work the same way; [RI Format.txt](https://github.com/sparkle-preference/OriDERandomizer/blob/master/RI%20Format.txt) lists them."
+            ]
+          }
+        ]
+      },
+      {
         "version": "5.0.0",
         "date": "2026-11-23",
         "announce": "all",
