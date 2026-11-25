@@ -348,7 +348,7 @@ class SiteBar extends Component {
                     <DropdownItem target="_blank" href="/league/rules">
                         Ori Rando League
                     </DropdownItem>
-                    <DropdownItem target="_blank" href="trickglossary">
+                    <DropdownItem target="_blank" href="/trickglossary">
                         Trick Glossary
                     </DropdownItem>
                     <DropdownItem target="_blank" href="/patchnotes">
