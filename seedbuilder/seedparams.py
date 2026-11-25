@@ -445,7 +445,9 @@ class SeedGenParams(ndb.Model):
             if flag.capitalize() in presets:
                 params.logic_paths = presets[flag.capitalize()]
                 break
-        params.set_vars(enums_from_strlist(Variation, plando.flags))
+        # the flag line also holds presets, modes and options, which aren't variations
+        variations = {v.value.lower() for v in Variation}
+        params.set_vars(enums_from_strlist(Variation, [f for f in plando.flags if f.lower() in variations]))
         params.put()
         return params
 

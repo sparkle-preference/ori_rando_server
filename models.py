@@ -1046,11 +1046,7 @@ class BingoTeam(ndb.Model):
         return [_pid(key) for key in [self.captain] + self.teammates]
 
     def to_json(self, players):
-        cap = players.get(self.captain)
-        if not cap:
-            log.error("Player %s captain of team %s but not in provided players list %s", cap, _pid(self.captain), players)
-            cap = self.captain.get()
-        
+        cap = players[self.captain]
         res = {"cap": {'pid': cap.pid(), 'name': cap.name()}, "score": self.score, "teammates": [], "bingos": self.bingos}
         if self.place:
             res["place"] = self.place
@@ -1217,7 +1213,7 @@ class BingoEvent(ndb.Model):
             timeStr = str(self.timestamp.time())
         if self.event_type.startswith("misc"):
             return {'type': self.event_type, 'time': timeStr}
-        res =  {'loss': self.loss, 'type': self.event_type, 'time': timeStr, 'player': _pid(self.player)}
+        res =  {'loss': self.loss, 'type': self.event_type, 'time': timeStr, 'player': _pid(self.player) if self.player else None}
         if self.event_type == 'square':
             res['square'] = self.square
         if self.event_type == 'bingo':
@@ -1447,7 +1443,8 @@ class BingoGameData(ndb.Model):
             # keyed by world; absent means the one board above is everyone's
             'boards': {str(wb.world): wb.to_json(players, initial) for wb in self.boards},
             'events': [e.to_json(self.start_time) for e in self.event_log],
-            'teams': {_pid(t.captain): t.to_json(players_by_pkey) for t in self.teams},
+            # a team whose captain holds no seat here has no player to show
+            'teams': {_pid(t.captain): t.to_json(players_by_pkey) for t in self.teams if t.captain in players_by_pkey},
             "gameId": self.game.id()
         }
         if self.creator:
