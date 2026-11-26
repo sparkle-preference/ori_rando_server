@@ -1,5 +1,6 @@
 import './index.css';
 import React from 'react';
+import ReactDOM from 'react-dom';
 import he from 'he';
 import { ZoomControl, Map, Pane, Tooltip, TileLayer, Rectangle, Polygon, Marker} from 'react-leaflet';
 import Leaflet from 'leaflet';
@@ -366,11 +367,69 @@ const flag_filter = (option, input) => !!option.data.completion || default_filte
 const flag_selected = (option, chips) => !option.__isNew__ && chips.some(c => c.value === option.value)
 const flag_no_options = ({inputValue}) => /[,|]/.test(inputValue) ? "One flag per chip: no , or |" : "No more suggestions"
 
+// A row away from the list's view is an empty row as tall as the last one measured (--box-row-h).
+// One watcher per list; it fills rows as they come near and empties them as they leave.
+const ROW_MARGIN_PX = 600
+const row_watchers = new WeakMap(), watched_rows = new WeakMap()
+const row_watcher = (list) => {
+    let w = row_watchers.get(list)
+    if(!w) {
+        w = new IntersectionObserver(seen => ReactDOM.unstable_batchedUpdates(() => seen.forEach(e => {
+            let row = watched_rows.get(e.target)
+            if(row)
+                row.seen(e)
+        })), {root: list, rootMargin: `${ROW_MARGIN_PX}px 0px`})
+        w.rows = new Set()
+        // rows change height as the panel's width eases, and the watcher can miss one crossing: a resize asks them all again
+        if(window.ResizeObserver) {
+            let asked = null
+            new ResizeObserver(() => {
+                cancelAnimationFrame(asked)
+                asked = requestAnimationFrame(() => w.rows.forEach(el => { w.unobserve(el); w.observe(el) }))
+            }).observe(list)
+        }
+        row_watchers.set(list, w)
+    }
+    return w
+}
+
 // pure, with handlers bound once, so only rows whose box object changed re-render
 class BoxRow extends React.PureComponent {
     // the flags select mounts on first use: every react-select in the list is paid for when the panel opens
-    state = {flagsLive: false, flagText: "", flagEdit: null, flagMenu: true}
-    ref = (el) => this.props.onRegister(this.props.b._id, el)
+    state = {live: false, flagsLive: false, flagText: "", flagEdit: null, flagMenu: true}
+    ref = (el) => { this.el = el; this.props.onRegister(this.props.b._id, el) }
+    componentDidMount() {
+        let list = this.el && this.el.closest(".box-list")
+        if(!list || !window.IntersectionObserver)
+            return this.setState({live: true})
+        this.watcher = row_watcher(list)
+        watched_rows.set(this.el, this)
+        this.watcher.rows.add(this.el)
+        this.watcher.observe(this.el)
+        // near the view on mount: filled before the first paint, not a frame later
+        let r = this.el.getBoundingClientRect(), view = list.getBoundingClientRect()
+        if(view.height && r.bottom > view.top - ROW_MARGIN_PX && r.top < view.bottom + ROW_MARGIN_PX)
+            this.setState({live: true})
+    }
+    componentDidUpdate(prev, prevState) {
+        let list = this.watcher && this.state.live && !prevState.live && this.el.parentNode
+        let h = list && this.el.offsetHeight + "px"
+        if(h && list.style.getPropertyValue("--box-row-h") !== h)
+            list.style.setProperty("--box-row-h", h)
+    }
+    componentWillUnmount() {
+        if(this.watcher) {
+            this.watcher.unobserve(this.el)
+            this.watcher.rows.delete(this.el)
+        }
+    }
+    // a row being typed in keeps its cells
+    seen = (e) => {
+        if(e.isIntersecting && !this.state.live)
+            this.setState({live: true})
+        else if(!e.isIntersecting && this.state.live && !this.el.contains(document.activeElement))
+            this.setState({live: false, flagsLive: false, flagText: "", flagEdit: null})
+    }
     select = () => this.props.onSelect(this.props.b._id)
     remove = (ev) => this.props.onRemove(this.props.i, ev)
     setColor = (ev) => this.props.onColor(this.props.i, ev.target.value)
@@ -449,11 +508,15 @@ class BoxRow extends React.PureComponent {
     }
     render() {
         let {b, i, selected} = this.props
+        let className = "box-row" + (selected ? " box-row-selected" : "") + (b.locked ? " box-row-locked" : "")
+        // the same div either way, so the watcher keeps its element
+        if(!this.state.live)
+            return <div className={className + " box-row-stub"} ref={this.ref} onClick={this.select}/>
         let hidden = box_hidden(b)
         let kind = box_shape_kind(b)
         let flags = this.flagChoices(b.flags, b.give, kind)
         return (
-            <div className={"box-row" + (selected ? " box-row-selected" : "") + (b.locked ? " box-row-locked" : "")}
+            <div className={className}
                  ref={this.ref} onClick={this.select}>
                 <span className="box-num" title={`BM|${i}`}>{i}</span>
                 <Button size="sm" color="danger" outline className="box-del" disabled={b.locked} title="Remove this box" onClick={this.remove}>&times;</Button>
@@ -1662,8 +1725,20 @@ class PlandoBuiler extends React.Component {
             panel.scrollTop = from + (to - from) * easeInOut(p)
             if(p < 1)
                 this.scrollAnim = requestAnimationFrame(step)
+            else
+                this.scrollAnim = requestAnimationFrame(() => this.landRow(row, panel))
         }
         this.scrollAnim = requestAnimationFrame(step)
+    };
+    // rows filled on the way can move the target, so it is aimed again for a few frames after the scroll stops
+    landRow = (row, panel, left = 10) => {
+        let r = row.getBoundingClientRect(), view = panel.getBoundingClientRect()
+        if(r.top < view.top)
+            panel.scrollTop += r.top - view.top
+        else if(r.bottom > view.bottom)
+            panel.scrollTop += r.bottom - view.bottom
+        if(left > 1)
+            this.scrollAnim = requestAnimationFrame(() => this.landRow(row, panel, left - 1))
     };
     // Leaflet gives the click to the rectangle it drew last, so pick again:
     // the smallest box holding the point, unlocked first.

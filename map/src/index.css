@@ -564,6 +564,10 @@ img.layout-picture {
   box-shadow: inset 3px 0 0 #3b8fff;
 }
 
+#box-controls .box-row-stub {
+  height: var(--box-row-h, 62px);
+}
+
 #box-controls .box-row-locked {
   opacity: 0.65;
 }
