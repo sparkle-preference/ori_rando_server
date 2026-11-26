@@ -1,0 +1,8 @@
+# Demo ghosts we shipped and then replaced. A player whose copy of a default still holds one of these
+# exactly takes the current demo at launch; a demo they made themselves is never on this list.
+# One SHA-1 per line, then anything as a note. Hashes still shipped are ignored until they're replaced.
+47a94812cd11567348471253853a2c6253905520  Grotto Bridge Skip
+8ee183610f57c52bf0ae0412e70b9dd29e1532eb  Grenade Tree Approach / bash-grenade
+d09f69520c27831f57b837ad5faa0ddbeed6bfac  Grenade Tree Approach / dash-play
+6bff39e65ea1b2300aa6b2024e6c9355f96184c1  Grenade Tree Approach / double-jump-method
+544dd59aac0dcc7f7676eaaab1d88ff7fd7c66ef  Grenade Tree Approach / zombie-ori

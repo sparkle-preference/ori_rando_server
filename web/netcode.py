@@ -63,6 +63,11 @@ def netcode_practice_defaults():
     return text_resp("\n".join(practice.defaults()))
 
 
+@bp.route('/netcode/practice-retired')
+def netcode_practice_retired():
+    return text_resp("\n".join(practice.retired_demos()))
+
+
 @bp.route('/netcode/practice/<file>')
 def netcode_practice_default(file):
     path = practice.default_path(file)

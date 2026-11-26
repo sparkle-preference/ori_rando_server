@@ -4,6 +4,7 @@ shipped in practice_defaults/ being one the client will take.
 Run from the repo root:  python3 -m unittest test.practice_defaults_test -v
 """
 import contextlib
+import hashlib
 import os
 import shutil
 import tempfile
@@ -82,6 +83,27 @@ class RoutesTestCase(unittest.TestCase):
             self.assertEqual(self.client.get("/netcode/practice/" + path).status_code, 404, path)
         self.assertIsNone(practice.default_path("../a.bfrp"))
 
+    def test_retired_demos_list_hashes_no_longer_shipped(self):
+        shipped, gone, other = b"current demo", b"old demo", b"older variant demo"
+        _bfrp(os.path.join(self.tmp, "Seg.bfrp"), {"segment.json": "{}", "ghosts/demo.ghost": shipped,
+                                                   "variants/v/segment.json": "{}"})
+        sha = {k: hashlib.sha1(v).hexdigest() for k, v in (("shipped", shipped), ("gone", gone), ("other", other))}
+        with open(os.path.join(self.tmp, practice.RETIRED), "w", encoding="utf-8") as f:
+            f.write("# replaced demos\n%s  Seg\n%s\n\n%s # variant v\n%s again\nnot-a-hash\n"
+                    % (sha["gone"], sha["shipped"], sha["other"].upper(), sha["gone"]))
+        r = self.client.get("/netcode/practice-retired")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_data(as_text=True), "%s\n%s" % (sha["gone"], sha["other"]))
+        # once the variant ships that demo again, it leaves the list
+        _bfrp(os.path.join(self.tmp, "Seg.bfrp"), {"segment.json": "{}", "ghosts/demo.ghost": shipped,
+                                                   "variants/v/segment.json": "{}", "variants/v/ghosts/demo.ghost": other})
+        self.assertEqual(self.client.get("/netcode/practice-retired").get_data(as_text=True), sha["gone"])
+
+    def test_no_retired_file_lists_nothing(self):
+        r = self.client.get("/netcode/practice-retired")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_data(as_text=True), "")
+
     def test_a_missing_folder_lists_nothing(self):
         practice.DIR = os.path.join(self.tmp, "gone")
         r = self.client.get("/netcode/practice")
@@ -93,7 +115,17 @@ class ShippedDefaultsTestCase(unittest.TestCase):
     """What gets dropped into practice_defaults/ must load in the game."""
 
     def files(self):
-        return [f for f in os.listdir(practice.DIR) if f not in ("README.md", practice.ORDER)]
+        return [f for f in os.listdir(practice.DIR) if f not in ("README.md", practice.ORDER, practice.RETIRED)]
+
+    def test_retired_lines_are_comments_or_start_with_a_sha1(self):
+        path = os.path.join(practice.DIR, practice.RETIRED)
+        if not os.path.isfile(path):
+            return
+        with open(path, encoding="utf-8-sig") as f:
+            for line in f:
+                words = line.split("#", 1)[0].split()
+                if words:
+                    self.assertRegex(words[0], r"^[0-9a-f]{40}$", "%s: %r" % (practice.RETIRED, line))
 
     def test_order_names_only_shipped_files(self):
         shipped = {name.lower() for name in practice.defaults()}

@@ -1,9 +1,13 @@
 """The default practice segments: every .bfrp in practice_defaults/, fetched by clients that lack them."""
+import hashlib
 import os
+import re
+import zipfile
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "practice_defaults")
 EXT = ".bfrp"
 ORDER = "order.txt"
+RETIRED = "retired_demos.txt"
 
 
 def defaults():
@@ -35,3 +39,27 @@ def default_path(file):
     if file.endswith(EXT) and file[:-len(EXT)] in defaults():
         return os.path.join(DIR, file)
     return None
+
+
+def retired_demos():
+    """retired_demos.txt's SHA-1s (each line's first word; # starts a comment), less any still shipped. A client
+    swaps a delivered default's demo ghost for the current one only while its own is on this list."""
+    path = os.path.join(DIR, RETIRED)
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8-sig") as f:
+        words = [line.split("#", 1)[0].split() for line in f]
+    hashes = [w[0].lower() for w in words if w and re.fullmatch(r"[0-9a-fA-F]{40}", w[0])]
+    shipped = shipped_demos()
+    return [h for h in dict.fromkeys(hashes) if h not in shipped]
+
+
+def shipped_demos():
+    """The SHA-1 of every demo ghost, root or variant, in the .bfrp files served now."""
+    found = set()
+    for name in defaults():
+        with zipfile.ZipFile(os.path.join(DIR, name + EXT)) as z:
+            for entry in z.namelist():
+                if re.fullmatch(r"(variants/[^/]+/)?ghosts/demo\.ghost", entry):
+                    found.add(hashlib.sha1(z.read(entry)).hexdigest())
+    return found
