@@ -83,7 +83,12 @@ def tick(game_id, player_id, payload):
     x = payload.get("x")
     y = payload.get("y")
     gpid = (game_id, player_id)
-    checksum = bfield_checksum(payload.get("seen_%s" % i, 0) for i in range(8))
+    fields = [payload.get("seen_%s" % i, 0) for i in range(8)]
+    doors = _entrance_doors(payload)
+    if doors is not None:
+        # a door use changes no seen bit, so it busts the fast path itself
+        fields.append("e%s" % doors)
+    checksum = bfield_checksum(fields)
     armed, cached_output = Cache.get_tick_cache(gpid)
     if armed == checksum and cached_output:
         Cache.set_pos(game_id, player_id, x, y)
@@ -110,14 +115,26 @@ def _tick_slow(game_id, player_id, payload):
     vers = payload.get("version")
     seen = [int(payload.get("seen_%s" % i, 0)) for i in range(8)]
     have = [int(payload.get("have_%s" % i, 0)) for i in range(8)]
+    doors = _entrance_doors(payload)
+    doors_changed = doors is not None and (p.entrance_doors or 0) != doors
     # a fresh-read txn on tick-owned fields: a put of this copy would erase concurrent grants
-    if (vers and p.dll_version != vers) or p.seen_bflds != seen or p.have_bflds != have:
+    if (vers and p.dll_version != vers) or p.seen_bflds != seen or p.have_bflds != have or doors_changed:
         if vers and p.dll_version != vers:
             log.info("NETPERF dll_version gid=%s pid=%s vers=%s was=%s", game_id, player_id, vers, p.dll_version)
-        p = Player.tick_update_txn(p.key, vers, seen, have)
+        p = Player.tick_update_txn(p.key, vers, seen, have, doors)
+        if doors_changed:
+            Cache.clear_reach(game_id, player_id)
         # set_have has merge semantics — pass only our own entry
         Cache.set_have(game_id, {p.pid(): p.have_coords()})
     return 200, _body(game, p)
+
+
+def _entrance_doors(payload):
+    """The tick's touched-door bitfield; None on seeds without entrance shuffle."""
+    try:
+        return int(payload.get("ent"))
+    except (TypeError, ValueError):
+        return None
 
 
 def _body(game, p):

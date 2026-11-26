@@ -374,8 +374,8 @@ const getHelpHelper = (category, option, whose = "your seed") => {
                         "The Entrance Shuffle variation remaps each door (the dungeon entrances and the 8 Horu side rooms) in the game to go to another door instead.",
                         "Recommended for anyone who likes being confused, or is interested in spending more time in Horu than usually necessary."
                     ]
-                    extras.push((<CardText className="border m-2 p-2 border-danger"><i>
-                        NOTE: The logic map straight up does not work this mode! It assumes doors go where they are supposed to go. Beware its lies...</i>
+                    extras.push((<CardText className="border m-2 p-2"><i>
+                        NOTE: Dungeon keys only open their own dungeon's front door. Logic may expect you to use a dungeon's teleporter without its key.</i>
                         </CardText>)
                         )
                     break;

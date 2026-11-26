@@ -1452,11 +1452,14 @@ class PlandoBuiler extends React.Component {
             let flags = this.state.seedFlags.map(f => f.value);
             if(flags.includes("ClosedDungeon"))
                 modes.push("CLOSED_DUNGEON");
-            if(flags.includes("OpenWorld")) 
+            if(flags.includes("OpenWorld"))
                 modes.push("OPEN_WORLD");
+            if(flags.includes("Shards"))
+                modes.push("SHARDS");
+            let entrances = flags.includes("Entrance") ? this.curEntrances() : null
 
 
-            getReachable((s, c) => this.setState(s, c), reachableStuff, modes, recursive ? () => this.updateReachable(reachableAreas) : () => null);
+            getReachable((s, c) => this.setState(s, c), reachableStuff, modes, recursive ? () => this.updateReachable(reachableAreas) : () => null, entrances);
       };
       
     // the three top-row panels share that row's width: two open pushes the buttons
@@ -1786,14 +1789,14 @@ class PlandoBuiler extends React.Component {
         mine[from.key] = `${to.x}|${to.y}`
         mine[to.key] = `${from.x}|${from.y}`
         return {entrances: entrances}
-    });
+    }, this.entrancesChanged);
     removeEntrance = (loc) => () => this.setState(prevState => {
         let entrances = {...prevState.entrances}
         let mine = {...(entrances[prevState.player] || {})}
         delete mine[loc]
         entrances[prevState.player] = mine
         return {entrances: entrances}
-    });
+    }, this.entrancesChanged);
     toggleMeta = () => this.showPanel("meta");
     addPlayer = () => {
         this.setState(prevState => {
@@ -1844,7 +1847,17 @@ class PlandoBuiler extends React.Component {
     
     resetReachable = () => this.setState({reachable: {...DEFAULT_REACHABLE}})
     
-    onFlags = (n) => this.setState({seedFlags: select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))}, this.updateReachable)
+    onFlags = (n) => this.setState(prev => {
+        let seedFlags = select_wrap(n.map(flag => FLAG_CASEFIX[flag.value.toLowerCase()] || flag.value))
+        let entrance = (flags) => flags.some(f => f.value === "Entrance")
+        // reachable only ever grows, and turning Entrance on takes the vanilla doors away
+        return entrance(seedFlags) !== entrance(prev.seedFlags) ? {seedFlags: seedFlags, reachable: {...DEFAULT_REACHABLE}} : {seedFlags: seedFlags}
+    }, this.updateReachable)
+    // reachable only ever grows, so an Entrance seed's door edit starts it over
+    entrancesChanged = () => {
+        if(this.state.seedFlags.some(f => f.value === "Entrance"))
+            this.setState({reachable: {...DEFAULT_REACHABLE}}, () => this.updateReachable())
+    }
 
 
     render() {
@@ -2182,7 +2195,7 @@ class PlandoBuiler extends React.Component {
                             </div>
                             <div>
                                 <Button color="primary" onClick={this.addEntrance}>Connect (both ways)</Button>
-                                <Button color="secondary" title="Clears this player's entrances" onClick={() => this.setState(prev => ({entrances: {...prev.entrances, [prev.player]: {}}}))} active={Object.keys(this.curEntrances()).length > 0}>Clear All</Button>
+                                <Button color="secondary" title="Clears this player's entrances" onClick={() => this.setState(prev => ({entrances: {...prev.entrances, [prev.player]: {}}}), this.entrancesChanged)} active={Object.keys(this.curEntrances()).length > 0}>Clear All</Button>
                             </div>
                             <div>
                                 {Object.keys(this.curEntrances()).map(loc => (
@@ -2276,7 +2289,8 @@ class PlandoBuiler extends React.Component {
     }
 }
 
-function getReachable(setter, inventory, modes, callback)
+// entrances: {doorKey: "x|y"} on an Entrance seed, walked as the only door connections; else null
+function getReachable(setter, inventory, modes, callback, entrances)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {
@@ -2296,7 +2310,10 @@ function getReachable(setter, inventory, modes, callback)
     }
     xmlHttp.open("POST", "/plando/reachable", true);
     xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xmlHttp.send(`inventory=${encodeURIComponent(JSON.stringify(inventory))}&modes=${encodeURIComponent(JSON.stringify(modes))}`);
+    let body = `inventory=${encodeURIComponent(JSON.stringify(inventory))}&modes=${encodeURIComponent(JSON.stringify(modes))}`
+    if(entrances)
+        body += `&entrances=${encodeURIComponent(JSON.stringify(entrances))}`
+    xmlHttp.send(body);
 }
 
 

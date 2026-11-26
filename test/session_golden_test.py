@@ -106,7 +106,7 @@ class SessionTestCase(NdbTestCase):
         # entity (no datastore here): fresh-read + tick-owned fields only
         self._tick_txn = Player.__dict__["tick_update_txn"]
 
-        def fake_tick_txn(pkey, vers, seen, have):
+        def fake_tick_txn(pkey, vers, seen, have, entrance_doors=None):
             _, _, pid = pkey.id().partition(".")
             p = self.game.player(int(pid))
             changed = False
@@ -262,7 +262,7 @@ class TestTick(SessionTestCase):
         fresh = make_player(1216, 1, skills=1793)
         self.game = FakeGame(players={1: stale})
         real_stub = Player.__dict__["tick_update_txn"]
-        Player.tick_update_txn = staticmethod(lambda pkey, vers, seen, have: fresh)
+        Player.tick_update_txn = staticmethod(lambda pkey, vers, seen, have, entrance_doors=None: fresh)
         try:
             Cache.set_seen_checksum((1216, 1), 999999)
             status, body = netcode.tick(1216, 1, self._payload(version="9.9.9"))

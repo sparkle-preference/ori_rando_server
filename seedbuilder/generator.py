@@ -10,6 +10,7 @@ from hashlib import sha256
 from seedbuilder.oriparse import get_areas, get_path_tags_from_pathsets
 from seedbuilder.relics import relics
 from seedbuilder import enemyopts, enemyroll
+from seedbuilder.entrances import DOORS, keys_only_for_doors
 
 def stable_string_hash(s):
     """Process-independent hash (str hash() is salted per process)."""
@@ -114,32 +115,8 @@ warp_targets2 = [
     ]
 ]
 
-doors_inner = [
-    ("GinsoInnerDoor", 522, 1),
-    ("ForlornInnerDoor", -717, -408),
-    ("HoruInnerDoor", 68, 169),
-    ("L1InnerDoor", -24, 369),
-    ("L2InnerDoor", -13, 301),
-    ("L3InnerDoor", -28, 244),
-    ("L4InnerDoor", -12, 188),
-    ("R2InnerDoor", 163, 266),
-    ("R3InnerDoor", 171, 218),
-    ("R4InnerDoor", 144, 151),
-    ("HoruEscapeInnerDoor", -242, 489)
-]
-doors_outer = [
-    ("GinsoOuterDoor", 527, -43),
-    ("ForlornOuterDoor", -668, -246),
-    ("HoruOuterDoor", -78, 2),
-    ("L1OuterDoor", 20, 371),
-    ("L2OuterDoor", 13, 293),
-    ("L3OuterDoor", 18, 248),
-    ("L4OuterDoor", 14, 191),
-    ("R2OuterDoor", 128, 288),
-    ("R3OuterDoor", 126, 245),
-    ("R4OuterDoor", 126, 196),
-    ("HoruEscapeOuterDoor", 18, 100)
-]
+doors_inner = DOORS[:11]
+doors_outer = DOORS[11:22]
 
 
 class MultiworldSlotOverflow(Exception):
@@ -1764,18 +1741,8 @@ class SeedGenerator:
                                 break
                         if valid:
                             if keysOnlyForDoors:
-                                # a dungeon key is required only at its own outer door
-                                altered_path = list(path)
-                                if "GinsoKey" in path:
-                                    if (conn_target_name != "GinsoOuterDoor") or ("InnerDoor" in home_name):
-                                        altered_path.remove("GinsoKey")
-                                if "ForlornKey" in path:
-                                    if conn_target_name != "ForlornOuterDoor" or ("InnerDoor" in home_name):
-                                        altered_path.remove("ForlornKey")
-                                if "HoruKey" in path:
-                                    if conn_target_name != "HoruOuterDoor" or ("InnerDoor" in home_name):
-                                        altered_path.remove("HoruKey")
-                                connection.add_requirements(list(altered_path[1:]), self.get_difficulty(path_tags))
+                                altered_path = keys_only_for_doors(home_name, conn_target_name, path)
+                                connection.add_requirements(altered_path[1:], self.get_difficulty(path_tags))
                             else:
                                 connection.add_requirements(list(path[1:]), self.get_difficulty(path_tags))
 

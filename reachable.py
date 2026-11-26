@@ -1,4 +1,5 @@
 from seedbuilder.oriparse import get_areas, hardest_pathset_from_tags
+from seedbuilder.entrances import SHARD_TELEPORTERS, is_door_edge, keys_only_for_doors
 from collections import defaultdict, Counter
 from pickups import Pickup
 
@@ -140,31 +141,61 @@ class Req(object):
     def __hash__(self):
         return hash(tuple(self.cnt.items()))
 
+FREE = Req([])
+
 class Map(object):
     areas = {}
+    # an Entrance world's map: keys only at their own outer doors, no door-to-door wiring
+    entrance_areas = {}
 
     @staticmethod
-    def build():
+    def build(entrance=False):
         areas = {}
         for name, area_data in get_areas()["homes"].items():
             area = Area(name)
             for target, conn_data in area_data["conns"].items():
+                if entrance and is_door_edge(name, target):
+                    continue
                 conn = Connection(target)
                 if not conn_data["paths"]:
                     conn.add_requirements([], "casual-core")
                 if conn_data["type"] == "pickup" and target not in areas:
                     areas[target] = Area(target)
                 for path in conn_data["paths"]:
+                    if entrance:
+                        path = keys_only_for_doors(name, target, path)
+                        if name == "TeleporterNetwork" and target in SHARD_TELEPORTERS:
+                            path = list(path) + [SHARD_TELEPORTERS[target][0]]
                     conn.add_requirements(path[1:], hardest_pathset_from_tags(path[0]))
                 area.conns.append(conn)
             areas[area.name] = area
         # published whole, so a concurrent caller never walks a half-built map
-        Map.areas = areas
+        if entrance:
+            Map.entrance_areas = areas
+        else:
+            Map.areas = areas
 
     @staticmethod
-    def get_reachable_areas(state, modes, spawn="Glades", need_reached_with=True, ks_tiers=None):
-        if not Map.areas:
-            Map.build()
+    def get_reachable_areas(state, modes, spawn="Glades", need_reached_with=True, ks_tiers=None, door_edges=None):
+        """door_edges ({door: {target door}}) makes this an Entrance world walked through only those doors."""
+        if door_edges is None:
+            if not Map.areas:
+                Map.build()
+            areas = Map.areas
+        else:
+            if not Map.entrance_areas:
+                Map.build(entrance=True)
+            areas = Map.entrance_areas
+            # "SHARDS" in modes: the seed's key mode, whose teleporters want two shards; any other mode, none
+            for token, shard in SHARD_TELEPORTERS.values():
+                state.has[token] = 1 if "SHARDS" not in modes or state.has[shard] >= 2 else 0
+
+        def step(curr, spendKS):
+            reachable = areas[curr].get_reachable(state, modes, spendKS, ks_tiers)
+            for target in (door_edges or {}).get(curr, ()):
+                reachable.setdefault(target, [FREE])
+            return reachable
+
         reached_with = defaultdict(set)
         unchecked_areas = { initial_area_by_spawn[spawn] if spawn in initial_area_by_spawn else "SunkenGladesRunaway" }
         reachable_areas = set()
@@ -182,14 +213,14 @@ class Map(object):
             unchecked_areas.discard(curr)
             reachable_areas.add(curr)
             needs_ks_check.add(curr)
-            reachable = Map.areas[curr].get_reachable(state, modes, tiers=ks_tiers)
+            reachable = step(curr, False)
             for k, v in reachable.items():
                 reached_with[k] |= set(v)
             unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])
             while len(unchecked_areas) < len(needs_ks_check):
                 curr = min(needs_ks_check)
                 needs_ks_check.discard(curr)
-                reachable = Map.areas[curr].get_reachable(state, modes, True, ks_tiers)
+                reachable = step(curr, True)
                 for k, v in reachable.items():
                     reached_with[k] |= set(v)
                 unchecked_areas |= set([r for r in reachable.keys() if r not in reachable_areas])

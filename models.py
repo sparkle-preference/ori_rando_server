@@ -484,6 +484,8 @@ class Player(ndb.Model):
     can_nag     = ndb.BooleanProperty(default=True)
     seen_bflds  = ndb.IntegerProperty(repeated=True)
     have_bflds  = ndb.IntegerProperty(repeated=True)
+    # entrance shuffle: the doors this player has used, in seedbuilder.entrances.DOORS bit order
+    entrance_doors = ndb.IntegerProperty(default=0)
     # multiworld: which of this player's item slots other players have found
     # (8x32 bits; slot semantics live in the player's own seed manifest)
     slot_bflds  = ndb.IntegerProperty(repeated=True)
@@ -550,11 +552,14 @@ class Player(ndb.Model):
 
     @staticmethod
     @ndb.transactional(retries=5)
-    def tick_update_txn(pkey, vers, seen_bflds, have_bflds):
-        """The tick's write: a fresh read touching only seen/have/dll_version. Returns the
-        fresh entity so the caller renders post-grant state."""
+    def tick_update_txn(pkey, vers, seen_bflds, have_bflds, entrance_doors=None):
+        """The tick's write: a fresh read touching only seen/have/dll_version/entrance_doors.
+        Returns the fresh entity so the caller renders post-grant state."""
         p = pkey.get()
         changed = False
+        if entrance_doors is not None and (p.entrance_doors or 0) != entrance_doors:
+            p.entrance_doors = entrance_doors
+            changed = True
         if vers and p.dll_version != vers:
             p.dll_version = vers
             changed = True

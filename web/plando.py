@@ -11,6 +11,7 @@ from enums import MultiplayerGameType
 from models import Game, LegacyUser, Seed, User
 from seedbuilder.seedparams import SeedGenParams, player_cap_problem
 from reachable import Map, PlayerState
+from seedbuilder.entrances import known_edges, parse_entrances
 from util import (INDEX_TEMPLATE, clone_entity, param_flag, param_int, param_val, parse_fass,
                   template_vals)
 from web.responses import code_resp, json_resp, make_resp, text_download, text_resp
@@ -189,10 +190,15 @@ def plando_reachable():
         modes = json.loads(request.form.get("modes") or "")
         inventory = json.loads(request.form.get("inventory") or "")
         codes = [tuple(item.split("|") + [count, False]) for item, count in inventory.items()]
+        # an Entrance seed: {door key: "x|y"}, the author's whole door map
+        raw = request.form.get("entrances")
+        door_edges = None
+        if raw is not None:
+            door_edges = known_edges(parse_entrances((loc, "EN", target) for loc, target in json.loads(raw).items()))
     except (ValueError, AttributeError):
         return text_resp("could not read modes and inventory", 400)
     areas = {}
-    for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes).items():
+    for area, reqs in Map.get_reachable_areas(PlayerState(codes), modes, door_edges=door_edges).items():
         areas[area] = [{item: count for (item, count) in req.cnt.items()} for req in reqs if len(req.cnt)]
     return json_resp(areas)
 

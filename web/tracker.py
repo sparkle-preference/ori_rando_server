@@ -13,6 +13,8 @@ from enums import MultiplayerGameType, ShareType, Variation
 from models import BingoGameData, Game, User
 from pickups import Event, Pickup
 from reachable import Map, PlayerState
+from seedbuilder.entrances import known_edges, parse_entrances
+from seedbuilder.seedparams import world_view
 from util import (INDEX_TEMPLATE, game_flags, is_mw_manifest_loc, param_flag,
                   param_int, param_val, template_vals, utcnow, whitelist_ok)
 from web.extensions import oidc
@@ -216,7 +218,14 @@ def tracker_update_map(game_id):
         from archipelago.convert import keystone_tier_map
         params = game.fetch_params()
         spawn = params.spawn or "Glades"
+        used_doors = None
         for p in need_reach_updates:
+            door_edges = None
+            if Variation.ENTRANCE_SHUFFLE in world_view(params, int(p)).variations:
+                if used_doors is None:
+                    used_doors = {player.pid(): player.entrance_doors or 0 for player in game.visible_players()}
+                entrances = parse_entrances(params.get_seed_data(int(p)))
+                door_edges = known_edges(entrances, used_doors.get(int(p), 0))
             inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"].get(p, {}).items()]
             inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
             state = PlayerState(inventory)
@@ -227,7 +236,7 @@ def tracker_update_map(game_id):
                 state.has["KS"] += 2 * (state.has["KS"] - 8)
             if p not in reach:
                 reach[p] = {}
-            reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False, ks_tiers=tiers)
+            reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False, ks_tiers=tiers, door_edges=door_edges)
         # merge write: only the recomputed players, so entries written meanwhile survive
         Cache.set_reachable(game_id, {p: reach[p] for p in need_reach_updates})
     # iterate rendered players: the merge write never prunes, so reach can hold stale pids
