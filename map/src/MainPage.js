@@ -398,12 +398,12 @@ const VAR_NAMES = {
 const ENEMY_KINDS = ["Fronkeys", "Frogs", "Slimes", "Banelings", "DropSlugs", "Worms", "Rhinos", "Birds", "Elementals", "Swarms", "Spiders", "Fish", "Sharks"]
 const ENEMY_KIND_NAMES = {Fronkeys: "Fronkeys", Frogs: "Frogs", Slimes: "Slimes", Banelings: "Banelings", DropSlugs: "Drop slugs", Worms: "Worms",
                           Rhinos: "Rhinos", Birds: "Birds", Elementals: "Elementals", Swarms: "Swarms", Spiders: "Spiders", Fish: "Fish", Sharks: "Sharks"}
-// the switches' defaults, mirrored in seedbuilder/enemyopts.py
-const ENEMY_SWITCHES = {pools: "on", flyingfish: "off", walkers: "on", shootercap: "on", logic: "on"}
+// the switches' defaults, mirrored in seedbuilder/enemyopts.py; wilhelm has no row, only Chaos turns it off
+const ENEMY_SWITCHES = {pools: "on", flyingfish: "off", walkers: "on", shootercap: "on", logic: "on", wilhelm: "on"}
 const ENEMY_PRESETS = {
     Standard: {},
     Mild: {pool: ENEMY_KINDS.filter(k => !["Rhinos", "Elementals", "Sharks"].includes(k)), keep: ["Worms"], arena: "kind", pools: "off", walkers: "off"},
-    Chaos: {hp: "0.5-2", dmg: "0.5-2", flyingfish: "on", shootercap: "off"},
+    Chaos: {hp: "0.5-2", dmg: "0.5-2", flyingfish: "on", shootercap: "off", wilhelm: "off"},
 }
 const ENEMY_RANGE = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/
 const cleanEnemyOpts = (o) => {

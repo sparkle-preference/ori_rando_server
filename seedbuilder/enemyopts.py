@@ -5,12 +5,12 @@ KINDS = ["Fronkeys", "Frogs", "Slimes", "Banelings", "DropSlugs", "Worms", "Rhin
          "Elementals", "Swarms", "Spiders", "Fish", "Sharks"]
 MODES = ("zone", "vanilla")
 ARENAS = ("hp", "kind")
-SWITCHES = ("pools", "flyingfish", "walkers", "shootercap", "logic")
+SWITCHES = ("pools", "flyingfish", "walkers", "shootercap", "logic", "wilhelm")  # wilhelm: no page row, the Chaos preset sets it
 
 # key -> default; an absent key on the line means this
 DEFAULTS = {
     "pool": KINDS, "keep": [], "hp": "zone", "dmg": "zone", "arena": "hp",
-    "pools": "on", "flyingfish": "off", "walkers": "on", "shootercap": "on", "logic": "on",
+    "pools": "on", "flyingfish": "off", "walkers": "on", "shootercap": "on", "logic": "on", "wilhelm": "on",
 }
 META_PREFIX = "//Enemies="
 RANGE = re.compile(r"^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$")
@@ -19,7 +19,7 @@ PRESETS = {
     "Standard": {},
     "Mild": {"pool": [k for k in KINDS if k not in ("Rhinos", "Elementals", "Sharks")], "keep": ["Worms"],
              "arena": "kind", "pools": "off", "walkers": "off"},
-    "Chaos": {"hp": "0.5-2", "dmg": "0.5-2", "flyingfish": "on", "shootercap": "off"},
+    "Chaos": {"hp": "0.5-2", "dmg": "0.5-2", "flyingfish": "on", "shootercap": "off", "wilhelm": "off"},
 }
 
 

@@ -115,7 +115,7 @@ class EnemyOptions(unittest.TestCase):
         self.assertIsNone(enemyopts.meta_line(enemyopts.PRESETS["Standard"]))
         self.assertEqual(enemyopts.meta_line(enemyopts.PRESETS["Mild"]),
                          "//Enemies=pool=Fronkeys+Frogs+Slimes+Banelings+DropSlugs+Worms+Birds+Swarms+Spiders+Fish;keep=Worms;arena=kind;pools=off;walkers=off")
-        self.assertEqual(enemyopts.meta_line(enemyopts.PRESETS["Chaos"]), "//Enemies=hp=0.5-2;dmg=0.5-2;flyingfish=on;shootercap=off")
+        self.assertEqual(enemyopts.meta_line(enemyopts.PRESETS["Chaos"]), "//Enemies=hp=0.5-2;dmg=0.5-2;flyingfish=on;shootercap=off;wilhelm=off")
 
     def test_the_cli_seed_carries_the_line(self):
         seed = cli_lines(["--enemy-rando", "--open-world", "--enemy-opts", "hp=0.5-2;pool=Frogs+Slimes;walkers=off"])["randomizer0.bfr"]
@@ -234,7 +234,14 @@ class EnemyOptionsDownload(unittest.TestCase):
         dropped = [k for k in enemyopts.KINDS if k not in mild["pool"]]
         self.assertIn('Mild: {pool: ENEMY_KINDS.filter(k => ![%s].includes(k)), keep: [%s], arena: "%s", pools: "%s", walkers: "%s"}' % (
             ", ".join('"%s"' % k for k in dropped), ", ".join('"%s"' % k for k in mild["keep"]), mild["arena"], mild["pools"], mild["walkers"]), page)
-        self.assertIn('Chaos: {hp: "%s", dmg: "%s", flyingfish: "%s", shootercap: "%s"}' % (chaos["hp"], chaos["dmg"], chaos["flyingfish"], chaos["shootercap"]), page)
+        self.assertIn('Chaos: {hp: "%s", dmg: "%s", flyingfish: "%s", shootercap: "%s", wilhelm: "%s"}' % (
+            chaos["hp"], chaos["dmg"], chaos["flyingfish"], chaos["shootercap"], chaos["wilhelm"]), page)
+
+    def test_wilhelm_screams_unless_the_switch_is_off(self):
+        from seedbuilder import enemyroll
+        at = [p["guid"] for p in enemyroll.table()["placements"]].index(enemyroll.WILHELM)
+        self.assertEqual({enemyroll.roll(s, 1, {})[at] for s in range(40)}, {None})
+        self.assertNotEqual({enemyroll.roll(s, 1, {"wilhelm": "off"})[at] for s in range(40)}, {None})
 
 
 class EnemyOptionsRefusals(unittest.TestCase):

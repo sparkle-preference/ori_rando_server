@@ -13,6 +13,8 @@ RANGED = ("Elementals", "Spiders")
 # a scene holds this many more ranged fliers than vanilla gave it
 RANGED_EXTRA = 2
 LASER = "floatingRockLaserEnemy"
+# the Valley fast spitter whose scream zones fire the Wilhelm scream; the wilhelm switch keeps it vanilla
+WILHELM = "1521995312 1170297741 -1996725075 -1078497357"
 # kinds that want level floor under them when they take a floor spot that never held one
 GROUNDED = ("Banelings", "Sharks", "Rhinos")
 # grounded kinds that are fine on a gentle slope too
@@ -61,6 +63,7 @@ def roll(seed, world, opts):
     pool, keep = set(o["pool"]), set(o["keep"])
     logic_on, pools_on = o["logic"] == "on", o["pools"] == "on"
     flying_fish, walkers = o["flyingfish"] == "on", o["walkers"] == "on"
+    wilhelm = o["wilhelm"] == "on"
     arena_kind, shooter_cap = o["arena"] == "kind", o["shootercap"] == "on"
     kinds = {k["name"]: k for k in t["kinds"]}
     kind_of_prefab = {p: k["name"] for k in t["kinds"] for p in k["prefabs"]}
@@ -68,6 +71,9 @@ def roll(seed, world, opts):
     ranged_rolled = defaultdict(int)
     out = []
     for p in t["placements"]:
+        if wilhelm and p["guid"] == WILHELM:
+            out.append(None)
+            continue
         chosen = pick(p, pool, keep, logic_on, pools_on, flying_fish, walkers, arena_kind, shooter_cap, kinds, kind_of_prefab,
                       ranged_rolled[p["scene"]] >= ranged_vanilla[p["scene"]] + RANGED_EXTRA,
                       random.Random(int(sha256(("%s|%s|%s" % (seed, world, p["guid"])).encode("utf-8")).hexdigest(), 16)))
