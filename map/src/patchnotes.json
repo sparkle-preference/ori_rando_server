@@ -13,6 +13,70 @@
   "pending": [],
   "releases": [
       {
+        "version": "5.0.2",
+        "date": "2026-11-26",
+        "announce": "all",
+        "changes": [
+          {
+            "text": "Logic tracking maps now properly handle Entrance Shuffle logic.",
+            "category": "Logic",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "Doors that are reachable and have not been used that seed get map icons to indicate that they are in logic.",
+              "Reachable pickups on the far side of door connections are displayed as in logic once those connections have been used at least once.",
+              "Updated reachability checks to account for logic rule changes specific to Entrance Shuffle.",
+              "Revised the Entrance Shuffle helpbox to account for these changes."
+            ]
+          },
+          {
+            "text": "Fixed an enemy rando bug that was preventing some randomized mortar worms from targeting properly.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Some performance improvements for the web-based editors, especially when handling lots of boxes at once.",
+            "category": "Plando",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Ghosts now show a small map or ability tree over their heads to indicate when players have the map or ability tree open, respectively.",
+            "category": "Multiplayer",
+            "type": "feature",
+            "importance": "major",
+            "sub": [
+              "The mini ability tree flashes when abilities are leveled to make it obvious when a ghost is performing a Save Anywhere."
+            ]
+          },
+          {
+            "text": "Practice segments now display what skills, abilities, and world events the segment will begin with during the briefing and countdown.",
+            "category": "Game",
+            "type": "feature",
+            "importance": "major"
+          },
+          {
+            "text": "Fixed the Trick Glossary link in the site menu breaking when used from some pages.",
+            "category": "Website",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Added the Casual tag to the Vanilla Seed to enable logic tracking.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          },
+          {
+            "text": "Fixed some odd practice mode behavior that could occur when pressing the retry bind while dead or with a menu open.",
+            "category": "Game",
+            "type": "fix",
+            "importance": "minor"
+          }
+        ]
+      },
+      {
         "version": "5.0.1",
         "date": "2026-11-24",
         "announce": "all",
