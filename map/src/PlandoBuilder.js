@@ -403,6 +403,7 @@ class BoxRow extends React.PureComponent {
         if(!list || !window.IntersectionObserver)
             return this.setState({live: true})
         this.watcher = row_watcher(list)
+        this.watched = this.el
         watched_rows.set(this.el, this)
         this.watcher.rows.add(this.el)
         this.watcher.observe(this.el)
@@ -419,12 +420,15 @@ class BoxRow extends React.PureComponent {
     }
     componentWillUnmount() {
         if(this.watcher) {
-            this.watcher.unobserve(this.el)
-            this.watcher.rows.delete(this.el)
+            this.watcher.unobserve(this.watched)
+            this.watcher.rows.delete(this.watched)
+            watched_rows.delete(this.watched)
         }
     }
     // a row being typed in keeps its cells
     seen = (e) => {
+        if(!this.el)
+            return
         if(e.isIntersecting && !this.state.live)
             this.setState({live: true})
         else if(!e.isIntersecting && this.state.live && !this.el.contains(document.activeElement))
@@ -1056,6 +1060,8 @@ class PlandoBuiler extends React.Component {
                 retVal.boxes = {...prevState.boxes, [player]: mine}
                 if(rolls)
                     retVal.enemy_rolls = {...prevState.enemy_rolls, [player]: rolls}
+                // reachable only ever grows, so an imported seed's walk starts over
+                retVal.reachable = {...DEFAULT_REACHABLE}
                 return retVal
             }, () => this.updateReachable());
 
@@ -1132,6 +1138,7 @@ class PlandoBuiler extends React.Component {
             .forEach(({b}, r) => { retVal.box_rank[b._id] = r }))
         if(newClueOrder.length === 3)
             retVal.clueOrder = {value: newClueOrder, label: mkClueOrderLabel(newClueOrder)};
+        retVal.reachable = {...DEFAULT_REACHABLE}
         this.setState(retVal, () => {
             this.updateReachable()
             if(then)
@@ -1708,6 +1715,7 @@ class PlandoBuiler extends React.Component {
     });
     // as little travel as brings the row into view, eased over SCROLL_MS
     scrollToRow = (row) => {
+        cancelAnimationFrame(this.scrollAnim)
         let panel = row ? row.closest(".box-list") : null
         if(!panel)
             return
@@ -1717,7 +1725,6 @@ class PlandoBuiler extends React.Component {
                : (top + row.offsetHeight > from + panel.clientHeight ? top + row.offsetHeight - panel.clientHeight : from)
         if(to === from)
             return
-        cancelAnimationFrame(this.scrollAnim)
         let started = null
         let step = (now) => {
             started = started || now
@@ -1732,6 +1739,8 @@ class PlandoBuiler extends React.Component {
     };
     // rows filled on the way can move the target, so it is aimed again for a few frames after the scroll stops
     landRow = (row, panel, left = 10) => {
+        if(!row.isConnected)
+            return
         let r = row.getBoundingClientRect(), view = panel.getBoundingClientRect()
         if(r.top < view.top)
             panel.scrollTop += r.top - view.top
