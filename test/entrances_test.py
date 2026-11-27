@@ -244,6 +244,22 @@ class TickDoorBits(NdbTestCase):
         netcode.tick(9203, 1, self._payload())
         self.assertEqual((writes, clears), ([], []))
 
+    def test_a_first_report_of_no_doors_is_stored(self):
+        writes, clears = self._rig(9204, None)
+        netcode.tick(9204, 1, self._payload(0))
+        self.assertEqual((writes, clears), ([0], [(9204, 1)]))
+
+
+class TrackerDoors(NdbTestCase):
+    def test_a_player_who_never_reported_doors_knows_them_all(self):
+        from web.tracker import touched_doors
+        entrances = parse_entrances(en_rows([("GinsoOuterDoor", "ForlornOuterDoor"), ("HoruOuterDoor", "GinsoInnerDoor")]))
+        old = make_player(9205, 1, entrance_doors=None)
+        new = make_player(9205, 2, entrance_doors=0)
+        doors = touched_doors([old, new])
+        self.assertEqual(known_edges(entrances, doors[1]), known_edges(entrances))
+        self.assertEqual(known_edges(entrances, doors[2]), known_edges(entrances, 0))
+
 
 if __name__ == "__main__":
     unittest.main()

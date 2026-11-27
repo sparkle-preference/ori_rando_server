@@ -484,8 +484,8 @@ class Player(ndb.Model):
     can_nag     = ndb.BooleanProperty(default=True)
     seen_bflds  = ndb.IntegerProperty(repeated=True)
     have_bflds  = ndb.IntegerProperty(repeated=True)
-    # entrance shuffle: the doors this player has used, in seedbuilder.entrances.DOORS bit order
-    entrance_doors = ndb.IntegerProperty(default=0)
+    # entrance shuffle: the doors this player has used, in seedbuilder.entrances.DOORS bit order; None from a dll that never reports them
+    entrance_doors = ndb.IntegerProperty()
     # multiworld: which of this player's item slots other players have found
     # (8x32 bits; slot semantics live in the player's own seed manifest)
     slot_bflds  = ndb.IntegerProperty(repeated=True)
@@ -557,7 +557,7 @@ class Player(ndb.Model):
         Returns the fresh entity so the caller renders post-grant state."""
         p = pkey.get()
         changed = False
-        if entrance_doors is not None and (p.entrance_doors or 0) != entrance_doors:
+        if entrance_doors is not None and p.entrance_doors != entrance_doors:
             p.entrance_doors = entrance_doors
             changed = True
         if vers and p.dll_version != vers:

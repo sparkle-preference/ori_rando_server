@@ -9,7 +9,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 from google.cloud import ndb
 
 from cache import Cache
-from enums import MultiplayerGameType, ShareType, Variation
+from enums import KeyMode, MultiplayerGameType, ShareType, Variation
 from models import BingoGameData, Game, User
 from pickups import Event, Pickup
 from reachable import Map, PlayerState
@@ -54,6 +54,10 @@ ACTIVE_GAMES_MAX_HOURS = 24 * 366 * 10
 share_types = [ShareType.EVENT, ShareType.SKILL, ShareType.UPGRADE, ShareType.MISC,
                ShareType.TELEPORTER]
 
+
+def touched_doors(players):
+    """{pid: door bits}; None from a dll that never reports them, which the walk reads as knowing every door."""
+    return {player.pid(): player.entrance_doors for player in players}
 
 @bp.route('/activeGames/')
 @bp.route('/activeGames/<hours>/')
@@ -221,11 +225,15 @@ def tracker_update_map(game_id):
         used_doors = None
         for p in need_reach_updates:
             door_edges = None
-            if Variation.ENTRANCE_SHUFFLE in world_view(params, int(p)).variations:
+            walk_modes = modes
+            view = world_view(params, int(p))
+            if Variation.ENTRANCE_SHUFFLE in view.variations:
                 if used_doors is None:
-                    used_doors = {player.pid(): player.entrance_doors or 0 for player in game.visible_players()}
+                    used_doors = touched_doors(game.visible_players())
                 entrances = parse_entrances(params.get_seed_data(int(p)))
-                door_edges = known_edges(entrances, used_doors.get(int(p), 0))
+                door_edges = known_edges(entrances, used_doors.get(int(p)))
+                if view.key_mode == KeyMode.SHARDS:
+                    walk_modes = modes + ("SHARDS",)
             inventory = [(pcode, pid, count, False) for ((pcode, pid), count) in inventories["unshared"].get(p, {}).items()]
             inventory  += [(pcode, pid, count, False) for group, inv in inventories.items()  if group != "unshared" and p in group for ((pcode, pid), count) in inv.items()]
             state = PlayerState(inventory)
@@ -236,7 +244,7 @@ def tracker_update_map(game_id):
                 state.has["KS"] += 2 * (state.has["KS"] - 8)
             if p not in reach:
                 reach[p] = {}
-            reach[p][modes] = Map.get_reachable_areas(state, modes, spawn, False, ks_tiers=tiers, door_edges=door_edges)
+            reach[p][modes] = Map.get_reachable_areas(state, walk_modes, spawn, False, ks_tiers=tiers, door_edges=door_edges)
         # merge write: only the recomputed players, so entries written meanwhile survive
         Cache.set_reachable(game_id, {p: reach[p] for p in need_reach_updates})
     # iterate rendered players: the merge write never prunes, so reach can hold stale pids

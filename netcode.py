@@ -116,7 +116,7 @@ def _tick_slow(game_id, player_id, payload):
     seen = [int(payload.get("seen_%s" % i, 0)) for i in range(8)]
     have = [int(payload.get("have_%s" % i, 0)) for i in range(8)]
     doors = _entrance_doors(payload)
-    doors_changed = doors is not None and (p.entrance_doors or 0) != doors
+    doors_changed = doors is not None and p.entrance_doors != doors
     # a fresh-read txn on tick-owned fields: a put of this copy would erase concurrent grants
     if (vers and p.dll_version != vers) or p.seen_bflds != seen or p.have_bflds != have or doors_changed:
         if vers and p.dll_version != vers:
